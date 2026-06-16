@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Program;
 use App\Services\LibraryHoldingsReport1ExcelWriter;
+use App\Services\LibraryHoldingsReport2ExcelWriter;
 use App\Services\LibraryHoldingsReportBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class LibraryHoldingsReportController extends Controller
 {
@@ -33,6 +35,7 @@ class LibraryHoldingsReportController extends Controller
         }
 
         $report = $builder->buildForProgram($program);
+        $report2 = $builder->buildReport2();
 
         if ($report['detail'] === [] && $report['summary'] === []) {
             return back()
@@ -44,13 +47,23 @@ class LibraryHoldingsReportController extends Controller
         $fileName = 'library_holdings_report_'.$slug.'_'.now()->format('Y-m-d').'.xlsx';
         $filePath = storage_path('app/'.$fileName);
 
-        (new LibraryHoldingsReport1ExcelWriter(
+        $spreadsheet = (new LibraryHoldingsReport1ExcelWriter(
             heiName: config('reports.hei_name'),
             programName: $programName,
             dateAccomplished: $validated['date_accomplished'] ?? null,
             detail: $report['detail'],
             summary: $report['summary'],
-        ))->saveTo($filePath);
+        ))->build();
+
+        (new LibraryHoldingsReport2ExcelWriter(
+            heiName: config('reports.hei_name'),
+            dateAccomplished: $validated['date_accomplished'] ?? null,
+            detail: $report2['detail'],
+            summary: $report2['summary'],
+            totals: $report2['totals'],
+        ))->addSheetTo($spreadsheet);
+
+        (new Xlsx($spreadsheet))->save($filePath);
 
         return response()->download($filePath, $fileName)->deleteFileAfterSend(true);
     }

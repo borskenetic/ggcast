@@ -52,6 +52,173 @@ class LibraryHoldingsReportBuilder
     }
 
     /**
+     * Report 2 — institution-wide book holdings list with classification summary.
+     *
+     * @return array{
+     *     detail: list<array{
+     *         collection_type: string,
+     *         classification: string,
+     *         course: string,
+     *         title: string,
+     *         author: string,
+     *         pub_year: int|string|null,
+     *         volume_count: int
+     *     }>,
+     *     summary: list<array{
+     *         classification: string,
+     *         printed_titles: int,
+     *         electronic_titles: int,
+     *         total_titles: int,
+     *         printed_volumes: int,
+     *         electronic_volumes: int,
+     *         total_volumes: int
+     *     }>,
+     *     totals: array{
+     *         printed_titles: int,
+     *         electronic_titles: int,
+     *         total_titles: int,
+     *         printed_volumes: int,
+     *         electronic_volumes: int,
+     *         total_volumes: int
+     *     }
+     * }
+     */
+    public function buildReport2(): array
+    {
+        $books = Book::query()
+            ->whereNull('archived_at')
+            ->get();
+
+        $detail = $this->buildReport2DetailLines($books);
+        $summary = $this->buildReport2SummaryLines($books);
+
+        $totals = [
+            'printed_titles' => array_sum(array_column($summary, 'printed_titles')),
+            'electronic_titles' => array_sum(array_column($summary, 'electronic_titles')),
+            'total_titles' => array_sum(array_column($summary, 'total_titles')),
+            'printed_volumes' => array_sum(array_column($summary, 'printed_volumes')),
+            'electronic_volumes' => array_sum(array_column($summary, 'electronic_volumes')),
+            'total_volumes' => array_sum(array_column($summary, 'total_volumes')),
+        ];
+
+        return [
+            'detail' => $detail,
+            'summary' => $summary,
+            'totals' => $totals,
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function buildReport2DetailLines(Collection $books): array
+    {
+        $groups = $books->groupBy(function (Book $book) {
+            $classification = $this->report2ClassificationLabel($book->curriculum);
+            $course = mb_strtolower(trim((string) $book->course));
+            $title = mb_strtolower(trim((string) $book->title_statement));
+
+            return mb_strtolower($classification).'|'.$course.'|'.$title;
+        });
+
+        $lines = $groups->map(function (Collection $copies) {
+            /** @var Book $sample */
+            $sample = $copies->first();
+
+            return [
+                'collection_type' => $this->collectionTypeFor($sample),
+                'classification' => $this->report2ClassificationLabel($sample->curriculum),
+                'classification_key' => $this->report2DetailSortOrder($sample->curriculum),
+                'course' => trim((string) $sample->course),
+                'title' => trim((string) $sample->title_statement),
+                'author' => trim((string) ($sample->main_author ?? '')),
+                'pub_year' => $this->normalizePubYear($sample->pub_year),
+                'volume_count' => $copies->count(),
+            ];
+        })->values();
+
+        return $lines->sort(function (array $a, array $b) {
+            $classificationCompare = ($a['classification_key'] ?? 99) <=> ($b['classification_key'] ?? 99);
+            if ($classificationCompare !== 0) {
+                return $classificationCompare;
+            }
+
+            $courseCompare = strnatcasecmp($a['course'], $b['course']);
+            if ($courseCompare !== 0) {
+                return $courseCompare;
+            }
+
+            return strnatcasecmp($a['title'], $b['title']);
+        })->values()->all();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    protected function buildReport2SummaryLines(Collection $books): array
+    {
+        $lines = [];
+
+        foreach (config('reports.report2_summary_order', []) as $classification) {
+            $classified = $books->filter(
+                fn (Book $book) => $this->report2ClassificationLabel($book->curriculum) === $classification
+            );
+
+            $titleGroups = $classified->groupBy(
+                fn (Book $book) => mb_strtolower(trim((string) $book->title_statement))
+            );
+
+            $printedTitles = 0;
+            $electronicTitles = 0;
+
+            foreach ($titleGroups as $copies) {
+                $hasPrinted = $copies->contains(fn (Book $book) => $this->collectionTypeFor($book) === 'Printed');
+                $hasElectronic = $copies->contains(fn (Book $book) => $this->collectionTypeFor($book) === 'Electronic');
+
+                if ($hasPrinted) {
+                    $printedTitles++;
+                }
+                if ($hasElectronic) {
+                    $electronicTitles++;
+                }
+            }
+
+            $printedVolumes = $classified
+                ->filter(fn (Book $book) => $this->collectionTypeFor($book) === 'Printed')
+                ->count();
+            $electronicVolumes = $classified
+                ->filter(fn (Book $book) => $this->collectionTypeFor($book) === 'Electronic')
+                ->count();
+
+            $lines[] = [
+                'classification' => $classification,
+                'printed_titles' => $printedTitles,
+                'electronic_titles' => $electronicTitles,
+                'total_titles' => $printedTitles + $electronicTitles,
+                'printed_volumes' => $printedVolumes,
+                'electronic_volumes' => $electronicVolumes,
+                'total_volumes' => $printedVolumes + $electronicVolumes,
+            ];
+        }
+
+        return $lines;
+    }
+
+    protected function report2ClassificationLabel(?string $curriculum): string
+    {
+        $normalized = mb_strtolower(trim((string) $curriculum));
+
+        return config("reports.report2_classification_labels.{$normalized}", 'General Education');
+    }
+
+    protected function report2DetailSortOrder(?string $curriculum): int
+    {
+        $normalized = mb_strtolower(trim((string) $curriculum));
+
+        return config("reports.report2_detail_sort.{$normalized}", 99);
+    }
+
+    /**
      * @return list<string>
      */
     protected function prospectusCourseOrder(Program $program): array

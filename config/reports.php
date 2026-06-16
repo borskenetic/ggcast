@@ -26,6 +26,31 @@ return [
         'general reference' => 4,
     ],
 
+    /*
+    | Report 2 uses shorter classification labels and a different detail sort order
+    | (General Reference → Filipiniana → Professional → General Education).
+    */
+    'report2_classification_labels' => [
+        'prof ed' => 'Professional',
+        'gen ed' => 'General Education',
+        'filipiniana' => 'Filipiniana',
+        'general reference' => 'General Reference',
+    ],
+
+    'report2_detail_sort' => [
+        'general reference' => 1,
+        'filipiniana' => 2,
+        'prof ed' => 3,
+        'gen ed' => 4,
+    ],
+
+    'report2_summary_order' => [
+        'General Reference',
+        'General Education',
+        'Filipiniana',
+        'Professional',
+    ],
+
     'signatories' => [
         'prepared_by_name' => env('REPORT_PREPARED_BY_NAME', ''),
         'prepared_by_title' => env('REPORT_PREPARED_BY_TITLE', 'College Librarian'),

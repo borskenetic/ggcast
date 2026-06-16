@@ -10,7 +10,7 @@
         <div>
             <h1 class="catalog-page__title">Library Holdings Report</h1>
             <p class="catalog-page__subtitle">
-                Generate CHED-style Report 1 (library collection list and per-course summary) from cataloged books.
+                Generate CHED-style Report 1 and Report 2 (library collection list, per-course summary, and institution-wide holdings summary) from cataloged books.
             </p>
         </div>
         <a href="{{ route('book.index') }}" class="btn btn-back btn-sm">← Back to catalog</a>
@@ -69,15 +69,15 @@
                 </div>
 
                 <div class="alert alert-light border small mb-4">
-                    <strong>Report 1 includes:</strong>
+                    <strong>Download includes two Excel sheets:</strong>
                     <ul class="mb-0 mt-2">
-                        <li>Left: each unique title per course with collection type, curriculum area, author, year, and copy count</li>
-                        <li>Right: per-course summary — titles, titles within the last {{ config('reports.recent_publication_years', 5) }} years, and total copies</li>
-                        <li>Footer: signatory block (configure names in <code>REPORT_PREPARED_BY_NAME</code> / <code>REPORT_APPROVED_BY_NAME</code>)</li>
+                        <li><strong>Report 1</strong> — program-specific: unique titles per course with collection type, curriculum area, author, year, and copy count; per-course summary on the right</li>
+                        <li><strong>Report 2</strong> — institution-wide: all cataloged holdings grouped by classification (General Reference, Filipiniana, Professional, General Education) with title and volume counts by print/electronic format</li>
+                        <li>Footer on both sheets: signatory block (configure names in <code>REPORT_PREPARED_BY_NAME</code> / <code>REPORT_APPROVED_BY_NAME</code>)</li>
                     </ul>
                 </div>
 
-                <button type="submit" class="btn btn-save">Download Excel (Report 1)</button>
+                <button type="submit" class="btn btn-save">Download Excel (Reports 1 &amp; 2)</button>
             </form>
         </div>
     </div>
