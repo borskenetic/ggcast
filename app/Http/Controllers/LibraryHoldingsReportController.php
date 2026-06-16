@@ -35,12 +35,12 @@ class LibraryHoldingsReportController extends Controller
         }
 
         $report = $builder->buildForProgram($program);
-        $report2 = $builder->buildReport2();
+        $report2 = $builder->buildReport2($program);
 
-        if ($report['detail'] === [] && $report['summary'] === []) {
+        if ($report['detail'] === [] && $report['summary'] === [] && $report2['detail'] === []) {
             return back()
                 ->withInput()
-                ->with('error', 'No cataloged books with a course were found for this program. Link books to the program and set a course on each copy.');
+                ->with('error', 'No cataloged books were found for this program. On each book copy, link it to this program in the cataloging form (Programs tab). For a major/specialization, either link copies to that program or select the base program (e.g. BSED) and use the suffix field for "MAJOR IN ENGLISH". Report 1 also requires a course on each copy.');
         }
 
         $slug = Str::slug($program->program_code ?: $program->program_name);

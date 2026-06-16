@@ -33,12 +33,7 @@ class LibraryHoldingsReportBuilder
         $recentYears = $recentYears ?? (int) config('reports.recent_publication_years', 5);
         $cutoffYear = (int) now()->year - $recentYears + 1;
 
-        $books = Book::query()
-            ->whereNull('archived_at')
-            ->whereNotNull('course')
-            ->where('course', '!=', '')
-            ->whereHas('programs', fn ($q) => $q->where('programs.id', $program->id))
-            ->get();
+        $books = $this->booksForProgram($program, requireCourse: true);
 
         $courseOrder = $this->prospectusCourseOrder($program);
 
@@ -52,7 +47,7 @@ class LibraryHoldingsReportBuilder
     }
 
     /**
-     * Report 2 — institution-wide book holdings list with classification summary.
+     * Report 2 — program holdings list with classification summary.
      *
      * @return array{
      *     detail: list<array{
@@ -83,11 +78,9 @@ class LibraryHoldingsReportBuilder
      *     }
      * }
      */
-    public function buildReport2(): array
+    public function buildReport2(Program $program): array
     {
-        $books = Book::query()
-            ->whereNull('archived_at')
-            ->get();
+        $books = $this->booksForProgram($program, requireCourse: false);
 
         $detail = $this->buildReport2DetailLines($books);
         $summary = $this->buildReport2SummaryLines($books);
@@ -106,6 +99,56 @@ class LibraryHoldingsReportBuilder
             'summary' => $summary,
             'totals' => $totals,
         ];
+    }
+
+    /**
+     * Books linked to the selected program (and code-based sibling variants, e.g. BSED-ENG → BSED).
+     */
+    protected function booksForProgram(Program $program, bool $requireCourse = false): Collection
+    {
+        $programIds = $this->programIdsForHoldings($program);
+
+        $query = Book::query()
+            ->whereNull('archived_at')
+            ->whereHas('programs', fn ($q) => $q->whereIn('programs.id', $programIds));
+
+        if ($requireCourse) {
+            $query->whereNotNull('course')->where('course', '!=', '');
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Program ids whose catalog links count toward a holdings report.
+     *
+     * @return list<int>
+     */
+    protected function programIdsForHoldings(Program $program): array
+    {
+        $ids = collect([$program->id]);
+        $code = trim((string) $program->program_code);
+
+        if ($code === '') {
+            return $ids->unique()->values()->all();
+        }
+
+        $ids = $ids->merge(
+            Program::where('program_code', $code)->pluck('id')
+        );
+
+        $baseCode = preg_replace('/[\-_\s].*$/', '', $code) ?: $code;
+        if (strlen($baseCode) >= 2) {
+            $ids = $ids->merge(
+                Program::query()
+                    ->where('program_code', $baseCode)
+                    ->orWhere('program_code', 'like', $baseCode.'-%')
+                    ->orWhere('program_code', 'like', $baseCode.'\_%')
+                    ->pluck('id')
+            );
+        }
+
+        return $ids->unique()->values()->all();
     }
 
     /**

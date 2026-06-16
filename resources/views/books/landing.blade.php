@@ -15,10 +15,13 @@
     @if($searchActive)
         <header class="opac-search-header" role="banner">
             <div class="opac-search-header-inner">
-                <div class="opac-search-brand">
+                <a href="{{ route('landing') }}" class="opac-search-brand text-decoration-none">
                     <img class="opac-search-logo" src="{{ asset('images/d.png') }}" alt="Library logo">
-                    <div class="opac-search-title">Governor Generoso College of Arts, Sciences and Technology</div>
-                </div>
+                    <div class="opac-search-brand-text">
+                        <span class="opac-search-kicker">Online Public Access Catalog</span>
+                        <span class="opac-search-title">Governor Generoso College of Arts, Sciences and Technology</span>
+                    </div>
+                </a>
 
                 <form method="GET" action="{{ route('landing') }}" class="opac-search-header-form" aria-label="Search">
                     <input type="hidden" name="view" value="{{ $viewMode ?? 'books' }}">
@@ -29,13 +32,16 @@
                     <div class="opac-search-header-row">
                         <input id="searchBar" type="search" name="search" value="{{ request('search') }}"
                             class="form-control opac-search-input"
-                            placeholder="{{ ($viewMode ?? 'books') === 'ebooks' ? 'Search e-books…' : 'Search books…' }}"
+                            placeholder="{{ ($viewMode ?? 'books') === 'ebooks' ? 'Search e-books by title, author, or keywords…' : 'Search books by title, author, or keywords…' }}"
                             autocomplete="off"
                             aria-label="Search catalog">
                         <button type="submit" class="btn btn-success opac-search-btn">Search</button>
                     </div>
-                    <div class="opac-search-clear small">
-                        <a href="{{ route('landing', ['view' => ($viewMode ?? 'books')]) }}">Clear search</a>
+                    <div class="opac-search-header-meta">
+                        @if(request('search'))
+                            <span class="opac-search-query-label">Showing results for <strong>{{ request('search') }}</strong></span>
+                        @endif
+                        <a href="{{ route('landing', ['view' => ($viewMode ?? 'books')]) }}" class="opac-search-clear-link">Clear search</a>
                     </div>
                 </form>
             </div>
@@ -61,174 +67,185 @@
 
     <div class="opac-page-fill flex-grow-1">
     @unless($searchActive)
-        <section class="hero-text">
-            <img src="{{ asset('images/Bannernew.jpg') }}" alt="Banner" class="banner-img">
-        </section>
-    @endunless
+        <section class="opac-hero-search" aria-labelledby="opac-search-heading">
+            <div class="opac-hero-search-inner">
+                <p class="opac-hero-kicker">Online Public Access Catalog</p>
+                <h1 id="opac-search-heading" class="opac-hero-title">Find books in our library</h1>
+                <p class="opac-hero-subtitle">Search by title, author, or keywords to browse the full collection.</p>
 
-    @unless($searchActive)
-    <section class="opac-new-arrivals-block px-3 pb-2">
-        <h1 id="nab" class="opac-new-arrivals-title text-center my-3">New arrival books</h1>
-
-        <div class="carousel">
-            <div class="carousel-container">
-                <div class="arrow left" onclick="slide(-1)" role="button" tabindex="0" aria-label="Previous"
-                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();slide(-1);}">
-                    <svg viewBox="0 0 20 20" aria-hidden="true">
-                        <path d="M12.5 3L5 10l7.5 7" stroke="#5b5e64" stroke-width="2.5" fill="none" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                    </svg>
-                </div>
-
-                <div class="carousel-track" id="carouselTrack">
-                    @foreach ($carouselBooks as $book)
-                    @php
-                        $cMeta = $carouselMeta[$book->id] ?? ['copies' => 1, 'is_available' => $book->availability === 'Available'];
-                        $cAvail = ($cMeta['is_available'] ?? false) ? 'Available' : 'Not Available';
-                    @endphp
-                    <div class="carosel"
-                        data-img="{{ $book->cover_image ? asset('storage/' . $book->cover_image) : asset('images/defaultBook.png') }}"
-                        data-title="{{ $book->title_statement }}"
-                        data-author="{{ $book->main_author }}"
-                        data-note="{{ $book->general_note }}"
-                        data-call="{{ $book->call_number }}"
-                        data-id="{{ $book->id }}"
-                        data-year="{{ $book->pub_year }}"
-                        data-availability="{{ $cAvail }}"
-                        data-copies="{{ $cMeta['copies'] }}"
-                        data-content="{{ $book->content_type }}"
-                        data-fixed="{{ $book->fixed_length_data }}"
-                        data-library="{{ $book->library_name }}"
-                        data-course="{{ $book->course ?? '' }}"
-                        onclick="openBookCard(this)">
-
-                        <img src="{{ $book->cover_image ? asset('storage/' . $book->cover_image) : asset('images/defaultBook.png') }}"
-                            alt="{{ $book->title_statement }}">
-                        <p>{{ $book->title_statement }}</p>
+                <form method="GET" action="{{ route('landing') }}" class="opac-search-form opac-hero-search-form">
+                    <div class="opac-hero-search-row">
+                        <input id="searchBar" type="search" name="search" value="{{ request('search') }}"
+                            class="form-control opac-hero-search-input"
+                            placeholder="Title, author, or keywords…"
+                            autocomplete="off"
+                            aria-label="Search catalog">
+                        <button type="submit" class="btn btn-success opac-hero-search-btn">Search</button>
                     </div>
-                    @endforeach
+                </form>
+
+                <p class="opac-search-hint">New arrivals are shown below. Catalog filters appear after you search.</p>
+            </div>
+        </section>
+
+        <section class="opac-new-arrivals-block" aria-labelledby="nab">
+            <div class="opac-new-arrivals-inner">
+                <div class="opac-section-head">
+                    <h2 id="nab" class="opac-new-arrivals-title">New arrival books</h2>
+                    <p class="opac-section-subtitle">Recently added titles — click a cover for details</p>
                 </div>
 
-                <div class="arrow right" onclick="slide(1)" role="button" tabindex="0" aria-label="Next"
-                    onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();slide(1);}">
-                    <svg viewBox="0 0 20 20" aria-hidden="true">
-                        <path d="M7.5 3L15 10l-7.5 7" stroke="#5b5e64" stroke-width="2.5" fill="none" stroke-linecap="round"
-                            stroke-linejoin="round" />
-                    </svg>
+                <div class="carousel">
+                    <div class="carousel-container">
+                        <div class="arrow left" onclick="slide(-1)" role="button" tabindex="0" aria-label="Previous"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();slide(-1);}">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path d="M12.5 3L5 10l7.5 7" stroke="#5b5e64" stroke-width="2.5" fill="none" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </div>
+
+                        <div class="carousel-track" id="carouselTrack">
+                            @foreach ($carouselBooks as $book)
+                            @php
+                                $cMeta = $carouselMeta[$book->id] ?? ['copies' => 1, 'is_available' => $book->availability === 'Available'];
+                                $cAvail = ($cMeta['is_available'] ?? false) ? 'Available' : 'Not Available';
+                            @endphp
+                            <div class="carosel"
+                                data-img="{{ $book->cover_image ? asset('storage/' . $book->cover_image) : asset('images/defaultBook.png') }}"
+                                data-title="{{ $book->title_statement }}"
+                                data-author="{{ $book->main_author }}"
+                                data-note="{{ $book->general_note }}"
+                                data-call="{{ $book->call_number }}"
+                                data-id="{{ $book->id }}"
+                                data-year="{{ $book->pub_year }}"
+                                data-availability="{{ $cAvail }}"
+                                data-copies="{{ $cMeta['copies'] }}"
+                                data-content="{{ $book->content_type }}"
+                                data-fixed="{{ $book->fixed_length_data }}"
+                                data-library="{{ $book->library_name }}"
+                                data-course="{{ $book->course ?? '' }}"
+                                onclick="openBookCard(this)">
+
+                                <div class="carosel-cover">
+                                    <img src="{{ $book->cover_image ? asset('storage/' . $book->cover_image) : asset('images/defaultBook.png') }}"
+                                        alt="{{ $book->title_statement }}">
+                                </div>
+                                <p class="carosel-title">{{ $book->title_statement }}</p>
+                            </div>
+                            @endforeach
+                        </div>
+
+                        <div class="arrow right" onclick="slide(1)" role="button" tabindex="0" aria-label="Next"
+                            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();slide(1);}">
+                            <svg viewBox="0 0 20 20" aria-hidden="true">
+                                <path d="M7.5 3L15 10l-7.5 7" stroke="#5b5e64" stroke-width="2.5" fill="none" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
-    @endunless
-
-    @unless($searchActive)
-    <section class="opac-search-block px-3 px-md-4 py-4" aria-labelledby="opac-search-heading">
-        <h2 id="opac-search-heading" class="h5 text-center mb-3">Search books...</h2>
-        <form method="GET" action="{{ route('landing') }}" class="opac-search-form mx-auto">
-            <div class="input-group input-group-lg mb-2">
-                <input id="searchBar" type="search" name="search" value="{{ request('search') }}"
-                    class="form-control"
-                    placeholder="Title, author, or keywords…"
-                    autocomplete="off"
-                    aria-label="Search catalog">
-                <button type="submit" class="btn btn-success">Search</button>
-            </div>
-
-        </form>
-
-        <p class="text-center text-muted small mt-3 mb-0 mx-auto opac-search-hint">
-            Catalog results and filters appear after you search. New arrivals are above.
-        </p>
-    </section>
+        </section>
     @endunless
 
     @if($searchActive)
     <div class="layout opac-results-shell">
         <aside class="opac-facets" aria-label="Filters">
-            <div class="opac-facet-card opac-facet-card--primary">
-                <div class="opac-facet-title">Library Catalog</div>
-                <div class="opac-facet-item is-active">
-                    {{ ($viewMode ?? 'books') === 'ebooks' ? 'E-Books' : 'Books' }}
-                </div>
-                <a class="opac-facet-link" href="{{ route('landing', array_merge(request()->except('page'), ['view' => (($viewMode ?? 'books') === 'ebooks' ? 'books' : 'ebooks')])) }}">
-                    View {{ ($viewMode ?? 'books') === 'ebooks' ? 'Books' : 'E-Books' }}
-                </a>
-            </div>
+            <div class="opac-filters-panel">
+                <section class="opac-filter-group">
+                    <h2 class="opac-filter-heading">Library catalog</h2>
+                    <div class="opac-facet-item is-active">
+                        {{ ($viewMode ?? 'books') === 'ebooks' ? 'E-Books' : 'Books' }}
+                    </div>
+                    <a class="opac-facet-link" href="{{ route('landing', array_merge(request()->except('page'), ['view' => (($viewMode ?? 'books') === 'ebooks' ? 'books' : 'ebooks')])) }}">
+                        View {{ ($viewMode ?? 'books') === 'ebooks' ? 'Books' : 'E-Books' }}
+                    </a>
+                </section>
 
-            <div class="opac-facet-card">
-                <div class="opac-facet-title">Searching</div>
-                <div class="opac-facet-sub text-muted small">
-                    {{ ($viewMode ?? 'books') === 'ebooks' ? ($ebooks?->total() ?? 0) : $books->total() }} Results
-                </div>
-            </div>
+                <section class="opac-filter-group">
+                    <h2 class="opac-filter-heading">Results</h2>
+                    <p class="opac-filter-result-count">
+                        {{ ($viewMode ?? 'books') === 'ebooks' ? ($ebooks?->total() ?? 0) : $books->total() }}
+                        {{ (($viewMode ?? 'books') === 'ebooks' ? ($ebooks?->total() ?? 0) : $books->total()) === 1 ? 'title' : 'titles' }}
+                    </p>
+                </section>
 
-            @if(($viewMode ?? 'books') !== 'ebooks')
-            <div class="opac-facet-card">
-                <div class="opac-facet-title">Format</div>
-                <form method="GET" action="{{ route('landing') }}" class="opac-facet-form">
-                    <input type="hidden" name="view" value="books">
-                    <input type="hidden" name="search" value="{{ request('search') }}">
-                    <input type="hidden" name="course" value="{{ request('course', 'all') }}">
-                    <input type="hidden" name="section" value="{{ request('section', 'All') }}">
-                    <input type="hidden" name="subject_topic" value="{{ request('subject_topic', 'All') }}">
-                    <select name="content_type" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Format">
-                        <option value="All" {{ request('content_type', 'All') === 'All' ? 'selected' : '' }}>All resources</option>
-                        @foreach ($content_type as $ct)
-                            <option value="{{ $ct }}" {{ request('content_type') == $ct ? 'selected' : '' }}>{{ $ct }}</option>
-                        @endforeach
-                    </select>
-                </form>
-            </div>
+                @if(($viewMode ?? 'books') !== 'ebooks')
+                <section class="opac-filter-group">
+                    <h2 class="opac-filter-heading">Format</h2>
+                    <form method="GET" action="{{ route('landing') }}" class="opac-facet-form">
+                        <input type="hidden" name="view" value="books">
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+                        <input type="hidden" name="course" value="{{ request('course', 'all') }}">
+                        <input type="hidden" name="section" value="{{ request('section', 'All') }}">
+                        <input type="hidden" name="subject_topic" value="{{ request('subject_topic', 'All') }}">
+                        <select name="content_type" class="form-select opac-filter-select" onchange="this.form.submit()" aria-label="Format">
+                            <option value="All" {{ request('content_type', 'All') === 'All' ? 'selected' : '' }}>All resources</option>
+                            @foreach ($content_type as $ct)
+                                <option value="{{ $ct }}" {{ request('content_type') == $ct ? 'selected' : '' }}>{{ $ct }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                </section>
 
-            <div class="opac-facet-card">
-                <div class="opac-facet-title">Section</div>
-                <form method="GET" action="{{ route('landing') }}" class="opac-facet-form">
-                    <input type="hidden" name="view" value="books">
-                    <input type="hidden" name="search" value="{{ request('search') }}">
-                    <input type="hidden" name="course" value="{{ request('course', 'all') }}">
-                    <input type="hidden" name="content_type" value="{{ request('content_type', 'All') }}">
-                    <input type="hidden" name="subject_topic" value="{{ request('subject_topic', 'All') }}">
-                    <select name="section" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Section">
-                        <option value="All" {{ request('section', 'All') === 'All' ? 'selected' : '' }}>All sections</option>
-                        @foreach ($sections as $section)
-                            <option value="{{ $section }}" {{ request('section') == $section ? 'selected' : '' }}>{{ $section }}</option>
-                        @endforeach
-                    </select>
-                </form>
-            </div>
+                <section class="opac-filter-group">
+                    <h2 class="opac-filter-heading">Section</h2>
+                    <form method="GET" action="{{ route('landing') }}" class="opac-facet-form">
+                        <input type="hidden" name="view" value="books">
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+                        <input type="hidden" name="course" value="{{ request('course', 'all') }}">
+                        <input type="hidden" name="content_type" value="{{ request('content_type', 'All') }}">
+                        <input type="hidden" name="subject_topic" value="{{ request('subject_topic', 'All') }}">
+                        <select name="section" class="form-select opac-filter-select" onchange="this.form.submit()" aria-label="Section">
+                            <option value="All" {{ request('section', 'All') === 'All' ? 'selected' : '' }}>All sections</option>
+                            @foreach ($sections as $section)
+                                <option value="{{ $section }}" {{ request('section') == $section ? 'selected' : '' }}>{{ $section }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                </section>
 
-            <div class="opac-facet-card">
-                <div class="opac-facet-title">Subject</div>
-                <form method="GET" action="{{ route('landing') }}" class="opac-facet-form">
-                    <input type="hidden" name="view" value="books">
-                    <input type="hidden" name="search" value="{{ request('search') }}">
-                    <input type="hidden" name="course" value="{{ request('course', 'all') }}">
-                    <input type="hidden" name="content_type" value="{{ request('content_type', 'All') }}">
-                    <input type="hidden" name="section" value="{{ request('section', 'All') }}">
-                    <select name="subject_topic" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Subject">
-                        <option value="All" {{ request('subject_topic', 'All') === 'All' ? 'selected' : '' }}>All subject topics</option>
-                        @foreach ($subjectTopics as $topic)
-                            <option value="{{ $topic }}" {{ request('subject_topic') == $topic ? 'selected' : '' }}>
-                                {{ \Illuminate\Support\Str::limit($topic, 25, '...') }}
-                            </option>
-                        @endforeach
-                    </select>
-                </form>
+                <section class="opac-filter-group">
+                    <h2 class="opac-filter-heading">Subject</h2>
+                    <form method="GET" action="{{ route('landing') }}" class="opac-facet-form">
+                        <input type="hidden" name="view" value="books">
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+                        <input type="hidden" name="course" value="{{ request('course', 'all') }}">
+                        <input type="hidden" name="content_type" value="{{ request('content_type', 'All') }}">
+                        <input type="hidden" name="section" value="{{ request('section', 'All') }}">
+                        <select name="subject_topic" class="form-select opac-filter-select" onchange="this.form.submit()" aria-label="Subject">
+                            <option value="All" {{ request('subject_topic', 'All') === 'All' ? 'selected' : '' }}>All subject topics</option>
+                            @foreach ($subjectTopics as $topic)
+                                <option value="{{ $topic }}" {{ request('subject_topic') == $topic ? 'selected' : '' }}>
+                                    {{ \Illuminate\Support\Str::limit($topic, 25, '...') }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </form>
+                </section>
+                @endif
             </div>
-            @endif
         </aside>
 
         <main class="opac-results-panel">
             <div class="opac-results-head">
                 <div class="opac-results-head-left">
-                    <div class="opac-results-kicker small text-muted">
+                    <h2 class="opac-results-title">
                         {{ ($viewMode ?? 'books') === 'ebooks' ? 'E-books' : 'Search results' }}
-                    </div>
+                    </h2>
+                    @if(request('search'))
+                        <p class="opac-results-subtitle">Matches for &ldquo;{{ request('search') }}&rdquo;</p>
+                    @endif
                 </div>
             </div>
 
             @if((($viewMode ?? 'books') === 'ebooks' ? ($ebooks?->total() ?? 0) : $books->total()) === 0)
-                <p class="text-center text-muted py-5">No titles matched your search. Try different keywords.</p>
+                <div class="opac-results-empty">
+                    <p class="opac-results-empty-title">No titles matched your search</p>
+                    <p class="opac-results-empty-text">Try different keywords, check your spelling, or clear filters.</p>
+                    <a href="{{ route('landing') }}" class="btn btn-outline-primary btn-sm mt-2">Back to catalog home</a>
+                </div>
             @endif
 
             <div class="opac-results-list" id="bookGrid">

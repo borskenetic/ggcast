@@ -46,7 +46,10 @@
                         @endforeach
                     </select>
                     <p class="small text-muted mt-1">
-                        Includes books linked to this program on the cataloging form that have a <strong>course</strong> set.
+                        Both reports include books linked to the selected program on the cataloging form.
+                        Report 1 also requires a <strong>course</strong> on each copy.
+                        For a major (e.g. English), you can select the base program (BSED) and use the suffix field below
+                        instead of a separate program entry.
                     </p>
                 </div>
 
@@ -72,7 +75,7 @@
                     <strong>Download includes two Excel sheets:</strong>
                     <ul class="mb-0 mt-2">
                         <li><strong>Report 1</strong> — program-specific: unique titles per course with collection type, curriculum area, author, year, and copy count; per-course summary on the right</li>
-                        <li><strong>Report 2</strong> — institution-wide: all cataloged holdings grouped by classification (General Reference, Filipiniana, Professional, General Education) with title and volume counts by print/electronic format</li>
+                        <li><strong>Report 2</strong> — program holdings grouped by classification (General Reference, General Education, Filipiniana, Professional) with title and volume counts by print/electronic format</li>
                         <li>Footer on both sheets: signatory block (configure names in <code>REPORT_PREPARED_BY_NAME</code> / <code>REPORT_APPROVED_BY_NAME</code>)</li>
                     </ul>
                 </div>
