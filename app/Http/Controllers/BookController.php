@@ -25,7 +25,7 @@ class BookController extends Controller
     public function __construct(protected BookMarcDisplay $marcDisplay) {}
 
     /**
-     * Max number of active loans (check-out or room use) one patron may have at once.
+     * Fallback default when no borrow-limit setting exists. Live limits are in {@see Setting}.
      * Enforced in {@see \App\Http\Controllers\BookLogController} and {@see \App\Http\Controllers\CheckoutController}.
      */
     public const MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT = 3;

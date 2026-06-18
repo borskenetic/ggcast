@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\BookLog;
 use App\Models\Employee;
 use App\Models\FineSetting;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Support\LoanDueDate;
 use Carbon\Carbon;
@@ -286,10 +287,20 @@ class BookLogController extends Controller
             $active = $studentId
                 ? BookLog::countActiveLoansForStudent($studentId)
                 : BookLog::countActiveLoansForEmployee($employeeId);
-            if ($active >= BookController::MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT) {
+
+            if ($studentId) {
+                if (Setting::wouldExceedStudentLoanLimit($active)) {
+                    $studentMax = Setting::maxLoansForStudents();
+                    return back()->with(
+                        'error',
+                        'This patron already has the maximum of '.$studentMax.' books on loan (including room use). Check one in first, or use check out only for books taken outside the library.'
+                    );
+                }
+            } elseif (Setting::wouldExceedEmployeeLoanLimit($active)) {
+                $employeeMax = Setting::maxLoansForEmployees();
                 return back()->with(
                     'error',
-                    'This patron already has the maximum of '.BookController::MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT.' books on loan (including room use). Check one in first, or use check out only for books taken outside the library.'
+                    'This patron already has the maximum of '.$employeeMax.' books on loan (including room use). Check one in first, or use check out only for books taken outside the library.'
                 );
             }
         }

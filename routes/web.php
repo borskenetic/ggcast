@@ -28,6 +28,7 @@ use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\FineSettingController;
 use App\Http\Controllers\FineClearanceController;
+use App\Http\Controllers\CirculationSettingController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\OpenLibraryCopyCatalogController;
 use App\Http\Controllers\CatalogFrameworkAdminController;
@@ -272,6 +273,8 @@ Route::middleware(['auth', 'can:isAdmin'])->group(function () {
     
     Route::get('/admin/fines', [FineSettingController::class, 'edit'])->name('fines.edit');
     Route::post('/admin/fines', [FineSettingController::class, 'update'])->name('fines.update');
+    Route::get('/admin/circulation/borrow-limits', [CirculationSettingController::class, 'edit'])->name('circulation.borrow_limits.edit');
+    Route::post('/admin/circulation/borrow-limits', [CirculationSettingController::class, 'update'])->name('circulation.borrow_limits.update');
     Route::get('/admin/fines/outstanding', [FineClearanceController::class, 'index'])->name('fines.outstanding');
     Route::post('/admin/fines/logs/{bookLog}/clear', [FineClearanceController::class, 'clear'])->name('fines.logs.clear');
 

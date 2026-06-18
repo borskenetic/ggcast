@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use App\Models\BookLog;
 use App\Models\FineSetting;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Support\LoanDueDate;
 use Carbon\Carbon;
@@ -86,10 +87,11 @@ class CheckoutController extends Controller
             }
 
             $currentLoans = BookLog::countActiveLoansForStudent((int) $student->id);
-            if ($currentLoans + count($availableIds) > BookController::MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT) {
+            $studentMax = Setting::maxLoansForStudents();
+            if (Setting::wouldExceedStudentLoanLimit($currentLoans, count($availableIds))) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Checkout blocked: patron may have at most '.BookController::MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT.' books on loan at a time (including room use).',
+                    'message' => 'Checkout blocked: patron may have at most '.$studentMax.' books on loan at a time (including room use).',
                 ]);
             }
 
@@ -242,10 +244,11 @@ class CheckoutController extends Controller
         }
 
         $currentLoans = BookLog::countActiveLoansForStudent((int) $student->id);
-        if ($currentLoans + count($availableIds) > BookController::MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT) {
+        $studentMax = Setting::maxLoansForStudents();
+        if (Setting::wouldExceedStudentLoanLimit($currentLoans, count($availableIds))) {
             return response()->json([
                 'success' => false,
-                'message' => 'Checkout blocked: patron may have at most '.BookController::MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT.' books on loan at a time.',
+                'message' => 'Checkout blocked: patron may have at most '.$studentMax.' books on loan at a time.',
             ]);
         }
 

@@ -8,4 +8,5 @@
 <a href="{{ route('book.report.download') }}">Download Book Report (PDF)</a>
 @can('isAdmin')
 <a href="{{ route('fines.edit') }}">Fines and Due Dates</a>
+<a href="{{ route('circulation.borrow_limits.edit') }}">Borrow Limits</a>
 @endcan
