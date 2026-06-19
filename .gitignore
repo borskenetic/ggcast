@@ -60,3 +60,7 @@ desktop.ini
 /public/videos/*.mp4
 /videos/*.mp4
 !/public/videos/.gitkeep
+
+# Per-school branding colors (copy branding.css.example → branding.css locally)
+/branding/branding.css
+/public/branding/branding.css

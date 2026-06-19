@@ -62,4 +62,3 @@
   --bs-link-color: var(--brand-accent);
   --bs-link-hover-color: var(--brand-accent);
 }
-
