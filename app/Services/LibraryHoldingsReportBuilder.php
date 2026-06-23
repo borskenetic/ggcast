@@ -85,6 +85,10 @@ class LibraryHoldingsReportBuilder
         $detail = $this->buildReport2DetailLines($books);
         $summary = $this->buildReport2SummaryLines($books);
 
+        if ($summary === [] && $detail !== []) {
+            $summary = $this->buildReport2SummaryFromDetail($detail);
+        }
+
         $totals = [
             'printed_titles' => array_sum(array_column($summary, 'printed_titles')),
             'electronic_titles' => array_sum(array_column($summary, 'electronic_titles')),
@@ -202,7 +206,7 @@ class LibraryHoldingsReportBuilder
     {
         $lines = [];
 
-        foreach (config('reports.report2_summary_order', []) as $classification) {
+        foreach ($this->report2SummaryOrder() as $classification) {
             $classified = $books->filter(
                 fn (Book $book) => $this->report2ClassificationLabel($book->curriculum) === $classification
             );
@@ -247,18 +251,178 @@ class LibraryHoldingsReportBuilder
         return $lines;
     }
 
-    protected function report2ClassificationLabel(?string $curriculum): string
+    /**
+     * Build Report 2 summary from detail lines (same title groups as the list).
+     *
+     * @param  list<array<string, mixed>>  $detail
+     * @return list<array<string, mixed>>
+     */
+    protected function buildReport2SummaryFromDetail(array $detail): array
+    {
+        $byClassification = collect($detail)->groupBy('classification');
+        $lines = [];
+
+        foreach ($this->report2SummaryOrder() as $classification) {
+            $items = $byClassification->get($classification, collect());
+
+            $printedTitles = 0;
+            $electronicTitles = 0;
+            $printedVolumes = 0;
+            $electronicVolumes = 0;
+
+            foreach ($items as $line) {
+                $volumes = (int) ($line['volume_count'] ?? 0);
+                if (($line['collection_type'] ?? '') === 'Electronic') {
+                    $electronicTitles++;
+                    $electronicVolumes += $volumes;
+                } else {
+                    $printedTitles++;
+                    $printedVolumes += $volumes;
+                }
+            }
+
+            $lines[] = [
+                'classification' => $classification,
+                'printed_titles' => $printedTitles,
+                'electronic_titles' => $electronicTitles,
+                'total_titles' => $printedTitles + $electronicTitles,
+                'printed_volumes' => $printedVolumes,
+                'electronic_volumes' => $electronicVolumes,
+                'total_volumes' => $printedVolumes + $electronicVolumes,
+            ];
+        }
+
+        return $lines;
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function report2SummaryOrder(): array
+    {
+        $order = config('reports.report2_summary_order');
+
+        if (is_array($order) && $order !== []) {
+            return $order;
+        }
+
+        return [
+            'General Reference',
+            'General Education',
+            'Filipiniana',
+            'Professional',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function report2ClassificationLabels(): array
+    {
+        $labels = config('reports.report2_classification_labels');
+
+        if (is_array($labels) && $labels !== []) {
+            return $labels;
+        }
+
+        return [
+            'prof ed' => 'Professional',
+            'gen ed' => 'General Education',
+            'filipiniana' => 'Filipiniana',
+            'general reference' => 'General Reference',
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    protected function report2DetailSortMap(): array
+    {
+        $sort = config('reports.report2_detail_sort');
+
+        if (is_array($sort) && $sort !== []) {
+            return $sort;
+        }
+
+        return [
+            'general reference' => 1,
+            'filipiniana' => 2,
+            'prof ed' => 3,
+            'gen ed' => 4,
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function curriculumLabels(): array
+    {
+        $labels = config('reports.curriculum_labels');
+
+        if (is_array($labels) && $labels !== []) {
+            return $labels;
+        }
+
+        return [
+            'prof ed' => 'Professional Education',
+            'gen ed' => 'General Education',
+            'filipiniana' => 'Filipiniana',
+            'general reference' => 'General Reference',
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    protected function curriculumSortMap(): array
+    {
+        $sort = config('reports.curriculum_sort');
+
+        if (is_array($sort) && $sort !== []) {
+            return $sort;
+        }
+
+        return [
+            'prof ed' => 1,
+            'gen ed' => 2,
+            'filipiniana' => 3,
+            'general reference' => 4,
+        ];
+    }
+
+    protected function normalizeCurriculumKey(?string $curriculum): string
     {
         $normalized = mb_strtolower(trim((string) $curriculum));
+        $normalized = str_replace(['.', '_', '-'], ' ', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
 
-        return config("reports.report2_classification_labels.{$normalized}", 'General Education');
+        $aliases = [
+            'general education' => 'gen ed',
+            'ge' => 'gen ed',
+            'professional education' => 'prof ed',
+            'professional' => 'prof ed',
+            'pe' => 'prof ed',
+            'general reference' => 'general reference',
+            'ref' => 'general reference',
+        ];
+
+        return $aliases[$normalized] ?? $normalized;
+    }
+
+    protected function report2ClassificationLabel(?string $curriculum): string
+    {
+        $normalized = $this->normalizeCurriculumKey($curriculum);
+        $labels = $this->report2ClassificationLabels();
+
+        return $labels[$normalized] ?? 'General Education';
     }
 
     protected function report2DetailSortOrder(?string $curriculum): int
     {
-        $normalized = mb_strtolower(trim((string) $curriculum));
+        $normalized = $this->normalizeCurriculumKey($curriculum);
+        $sort = $this->report2DetailSortMap();
 
-        return config("reports.report2_detail_sort.{$normalized}", 99);
+        return $sort[$normalized] ?? 99;
     }
 
     /**
@@ -402,16 +566,18 @@ class LibraryHoldingsReportBuilder
 
     protected function curriculumLabelFor(?string $curriculum): string
     {
-        $normalized = mb_strtolower(trim((string) $curriculum));
+        $normalized = $this->normalizeCurriculumKey($curriculum);
+        $labels = $this->curriculumLabels();
 
-        return config("reports.curriculum_labels.{$normalized}", 'General Education');
+        return $labels[$normalized] ?? 'General Education';
     }
 
     protected function curriculumSortOrder(?string $curriculum): int
     {
-        $normalized = mb_strtolower(trim((string) $curriculum));
+        $normalized = $this->normalizeCurriculumKey($curriculum);
+        $sort = $this->curriculumSortMap();
 
-        return config("reports.curriculum_sort.{$normalized}", 99);
+        return $sort[$normalized] ?? 99;
     }
 
     protected function normalizePubYear(mixed $pubYear): ?int
