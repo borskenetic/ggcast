@@ -14,6 +14,10 @@ class Ebook extends Model
         'publisher',
         'source',
         'link',
+        'resource_type',
+        'publication_scope',
+        'frequency',
+        'subscription_type',
         'program_id',
         'course_id',
     ];

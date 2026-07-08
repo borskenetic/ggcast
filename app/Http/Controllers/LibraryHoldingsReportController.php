@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Program;
 use App\Services\LibraryHoldingsReport1ExcelWriter;
 use App\Services\LibraryHoldingsReport2ExcelWriter;
+use App\Services\LibraryHoldingsReport3ExcelWriter;
 use App\Services\LibraryHoldingsReportBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -36,11 +37,12 @@ class LibraryHoldingsReportController extends Controller
 
         $report = $builder->buildForProgram($program);
         $report2 = $builder->buildReport2($program);
+        $report3 = $builder->buildReport3($program);
 
-        if ($report['detail'] === [] && $report['summary'] === [] && $report2['detail'] === []) {
+        if ($report['detail'] === [] && $report['summary'] === [] && $report2['detail'] === [] && $report3['detail'] === []) {
             return back()
                 ->withInput()
-                ->with('error', 'No cataloged books were found for this program. On each book copy, link it to this program in the cataloging form (Programs tab). For a major/specialization, either link copies to that program or select the base program (e.g. BSED) and use the suffix field for "MAJOR IN ENGLISH". Report 1 also requires a course on each copy.');
+                ->with('error', 'No cataloged books or e-resources were found for this program. Link book copies to this program in cataloging (Programs tab), and add professional journals under View E-Resources with the matching program. Report 1 also requires a course on each book copy.');
         }
 
         $slug = Str::slug($program->program_code ?: $program->program_name);
@@ -61,6 +63,13 @@ class LibraryHoldingsReportController extends Controller
             detail: $report2['detail'],
             summary: $report2['summary'],
             totals: $report2['totals'],
+        ))->addSheetTo($spreadsheet);
+
+        (new LibraryHoldingsReport3ExcelWriter(
+            heiName: config('reports.hei_name'),
+            programName: $programName,
+            dateAccomplished: $validated['date_accomplished'] ?? null,
+            detail: $report3['detail'],
         ))->addSheetTo($spreadsheet);
 
         (new Xlsx($spreadsheet))->save($filePath);

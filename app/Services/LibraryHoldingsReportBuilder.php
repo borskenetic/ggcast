@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Book;
+use App\Models\Ebook;
 use App\Models\Program;
 use Illuminate\Support\Collection;
 
@@ -103,6 +104,56 @@ class LibraryHoldingsReportBuilder
             'summary' => $summary,
             'totals' => $totals,
         ];
+    }
+
+    /**
+     * Report 3 — professional journal subscriptions from E-Resources.
+     *
+     * @return array{
+     *     detail: list<array{
+     *         type: string,
+     *         journal_name: string,
+     *         publisher: string,
+     *         publication: string,
+     *         frequency: string,
+     *         subscription: string,
+     *         supporting_link: string
+     *     }>
+     * }
+     */
+    public function buildReport3(Program $program): array
+    {
+        $ebooks = $this->ebooksForProgram($program);
+
+        $detail = $ebooks->map(function (Ebook $ebook) {
+            return [
+                'type' => trim((string) ($ebook->resource_type ?: 'Electronic')),
+                'journal_name' => trim((string) $ebook->title),
+                'publisher' => trim((string) ($ebook->publisher ?? '')),
+                'publication' => trim((string) ($ebook->publication_scope ?? '')),
+                'frequency' => trim((string) ($ebook->frequency ?? '')),
+                'subscription' => trim((string) ($ebook->subscription_type ?? '')),
+                'supporting_link' => trim((string) ($ebook->link ?? '')),
+            ];
+        })->values()->all();
+
+        return ['detail' => $detail];
+    }
+
+    /**
+     * E-Resources linked to the selected program (or available to all programs).
+     */
+    protected function ebooksForProgram(Program $program): Collection
+    {
+        $programIds = $this->programIdsForHoldings($program);
+
+        return Ebook::query()
+            ->where(function ($query) use ($programIds) {
+                $query->whereIn('program_id', $programIds)
+                    ->orWhereNull('program_id');
+            })
+            ->orderBy('title')
+            ->get();
     }
 
     /**

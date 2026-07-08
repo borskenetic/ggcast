@@ -85,6 +85,10 @@ class EbookController extends Controller
             'publisher' => 'nullable|string|max:255',
             'source' => 'nullable|string|max:255',
             'link' => 'nullable|url|max:255',
+            'resource_type' => 'nullable|string|max:50',
+            'publication_scope' => 'nullable|string|max:50',
+            'frequency' => 'nullable|string|max:50',
+            'subscription_type' => 'nullable|string|max:50',
             'program_id' => 'nullable|exists:programs,id',
             'course_id' => 'nullable|exists:program_courses,id',
         ]);
@@ -93,6 +97,8 @@ class EbookController extends Controller
         if ($request->program_id === 'all') {
             $validated['program_id'] = null;
         }
+
+        $validated['resource_type'] = $validated['resource_type'] ?? 'Electronic';
 
         Ebook::create($validated);
 
@@ -111,6 +117,10 @@ class EbookController extends Controller
             'publisher' => 'nullable|string|max:255',
             'source' => 'nullable|string|max:255',
             'link' => 'nullable|url|max:255',
+            'resource_type' => 'nullable|string|max:50',
+            'publication_scope' => 'nullable|string|max:50',
+            'frequency' => 'nullable|string|max:50',
+            'subscription_type' => 'nullable|string|max:50',
             'program_id' => 'nullable|exists:programs,id',
             'course_id' => 'nullable|exists:program_courses,id',
         ]);
@@ -119,6 +129,8 @@ class EbookController extends Controller
         if ($request->program_id === 'all') {
             $validated['program_id'] = null;
         }
+
+        $validated['resource_type'] = $validated['resource_type'] ?? 'Electronic';
 
         $ebook->update($validated);
 

@@ -57,12 +57,14 @@
             <section class="ebooks-form-section">
                 <h2 class="ebooks-form-section__title">Access</h2>
                 <div class="mb-0">
-                    <label for="link" class="form-label">Resource link (URL)</label>
+                    <label for="link" class="form-label">Supporting documents link (URL)</label>
                     <input type="url" id="link" name="link" value="{{ old('link') }}" class="form-control"
                            placeholder="https://">
-                    <p class="ebooks-form-hint">Patrons can open this link from the collection list.</p>
+                    <p class="ebooks-form-hint">Used as the supporting documents link on Report 3.</p>
                 </div>
             </section>
+
+            @include('ebooks.partials.report_fields')
 
             <section class="ebooks-form-section">
                 <h2 class="ebooks-form-section__title">Program assignment</h2>

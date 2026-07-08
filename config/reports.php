@@ -58,4 +58,26 @@ return [
         'approved_by_title' => env('REPORT_APPROVED_BY_TITLE', 'HEI Head'),
     ],
 
+    /*
+    | Report 3 — professional journal subscriptions (from E-Resources).
+    */
+    'ereport_resource_types' => ['Electronic', 'Printed'],
+
+    'ereport_publication_scopes' => ['Foreign', 'Local'],
+
+    'ereport_frequencies' => [
+        'Annual',
+        'Semi-Annual',
+        'Quarterly',
+        'Monthly',
+        'Weekly',
+        'Other',
+    ],
+
+    'ereport_subscription_types' => [
+        'Renewable',
+        'One-time',
+        'Open Access',
+    ],
+
 ];
