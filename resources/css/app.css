@@ -1,12 +1,563 @@
 @import 'tailwindcss';
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./brand-tokens.css";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source "../**/*.blade.php";
 @source "../**/*.js";
+@source "../**/*.jsx";
 @source "../**/*.vue";
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji');
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-chart-1: var(--chart-1);
+    --color-chart-2: var(--chart-2);
+    --color-chart-3: var(--chart-3);
+    --color-chart-4: var(--chart-4);
+    --color-chart-5: var(--chart-5);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-status-available: var(--status-available);
+    --color-status-available-foreground: var(--status-available-foreground);
+    --color-status-borrowed: var(--status-borrowed);
+    --color-status-borrowed-foreground: var(--status-borrowed-foreground);
+    --color-status-success: var(--status-success);
+    --color-status-success-foreground: var(--status-success-foreground);
+    --color-status-danger: var(--status-danger);
+    --color-status-danger-foreground: var(--status-danger-foreground);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  .theme {
+        --font-heading: var(--brand-font-family-heading, var(--font-sans));
+        --font-sans: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif);
+    }
+  :root {
+        /* Color tokens: public/branding/branding.css → resources/css/brand-tokens.css */
+        --radius: 0.5rem;
+    }
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+
+@layer components {
+    /*
+     * Bootstrap 5 utilities share class names with Tailwind (.flex, .p-3, .gap-3, .hidden)
+     * and use !important — they break the React shell on Blade pages. Home/Inertia has no
+     * Bootstrap, which is why it looked fine. Re-assert layout via data-slot selectors.
+     */
+    .admin-shell[data-slot="sidebar-wrapper"] {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: stretch !important;
+        min-height: 100svh !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100vw !important;
+    }
+
+    .admin-shell [data-slot="sidebar-inset"] {
+        display: flex !important;
+        flex: 1 1 0% !important;
+        flex-direction: column !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        background-color: var(--background) !important;
+    }
+
+    .admin-shell [data-slot="admin-header"] {
+        display: flex !important;
+        flex-shrink: 0 !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        height: 3.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        border-bottom: 1px solid var(--border) !important;
+        background-color: var(--background) !important;
+        position: relative !important;
+        z-index: 30 !important;
+    }
+
+    .admin-shell [data-slot="admin-header-actions"] {
+        display: flex !important;
+        flex: 1 1 0% !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 0.5rem !important;
+        min-width: 0 !important;
+    }
+
+    .admin-shell [data-slot="admin-main"] {
+        display: flex !important;
+        flex: 1 1 0% !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    @media (min-width: 640px) {
+        .admin-shell [data-slot="admin-main"] {
+            gap: 1rem !important;
+            padding: 1rem !important;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .admin-shell [data-slot="admin-main"] {
+            padding: 1.5rem !important;
+        }
+
+        .admin-shell [data-slot="sidebar"]:not([data-mobile="true"]) {
+            display: block !important;
+        }
+
+        .admin-shell [data-slot="sidebar-container"] {
+            display: flex !important;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .admin-shell [data-slot="sidebar"]:not([data-mobile="true"]) {
+            display: none !important;
+        }
+    }
+
+    .admin-shell [data-slot="sidebar-inner"] {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+    }
+
+    .admin-shell [data-slot="sidebar-content"] {
+        display: flex !important;
+        flex: 1 1 0% !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+
+    .admin-shell .admin-blade-slot {
+        display: block !important;
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Mobile drawer is portaled to body — outside .admin-shell */
+    [data-slot="sidebar"][data-mobile="true"] {
+        display: flex !important;
+        flex-direction: column !important;
+        width: min(18rem, 90vw) !important;
+        max-width: min(18rem, 90vw) !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        background-color: var(--sidebar) !important;
+        color: var(--sidebar-foreground) !important;
+        box-sizing: border-box !important;
+    }
+
+    [data-slot="sidebar"][data-mobile="true"] > div {
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100% !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: 1 1 auto !important;
+    }
+
+    /* Radix scroll lock adds padding-right and causes horizontal overflow on mobile */
+    @media (max-width: 767px) {
+        body.admin-page[data-scroll-locked] {
+            padding-right: 0 !important;
+            margin-right: 0 !important;
+            overflow: hidden !important;
+        }
+    }
+
+    /* Isolate the React shell from Bootstrap + legacy page stylesheets. */
+    .admin-shell[data-slot="sidebar-wrapper"] {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .admin-shell [data-slot="sidebar-container"] {
+        overflow-x: hidden;
+    }
+
+    .admin-shell [data-slot="sidebar-inner"],
+    .admin-shell [data-slot="sidebar-content"] {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .admin-shell [data-slot="sidebar-menu"],
+    .admin-shell [data-sidebar="menu-sub"],
+    .admin-shell [data-sidebar="menu-item"],
+    .admin-shell [data-sidebar="menu-sub-item"] {
+        padding-left: 0 !important;
+        margin-bottom: 0;
+        list-style: none !important;
+    }
+
+    .admin-shell [data-sidebar="menu-sub"] {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+    }
+
+    .admin-shell [data-slot="sidebar-inset"] {
+        min-width: 0;
+    }
+
+    .admin-shell [data-slot="sidebar-inner"] {
+        box-shadow: 2px 0 16px color-mix(in oklch, var(--sidebar) 35%, transparent);
+    }
+
+    [data-slot="sidebar-inner"] {
+        position: relative;
+        overflow: hidden;
+        background:
+            linear-gradient(
+                165deg,
+                color-mix(in oklch, var(--sidebar) 88%, white) 0%,
+                var(--sidebar) 42%,
+                color-mix(in oklch, var(--sidebar) 92%, black) 100%
+            );
+    }
+
+    [data-slot="sidebar-inner"]::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: 3px;
+        background: linear-gradient(
+            180deg,
+            color-mix(in oklch, var(--sidebar-primary) 70%, white),
+            var(--sidebar-primary),
+            color-mix(in oklch, var(--sidebar-primary) 80%, var(--sidebar))
+        );
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    [data-slot="sidebar-inner"] > * {
+        position: relative;
+        z-index: 2;
+    }
+
+    [data-slot="sidebar-content"] {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in oklch, var(--sidebar-primary) 45%, transparent) transparent;
+    }
+
+    [data-slot="sidebar-content"]::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    [data-slot="sidebar-content"]::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: color-mix(in oklch, var(--sidebar-primary) 40%, transparent);
+    }
+
+    [data-slot="sidebar-content"]::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .admin-shell [data-slot="admin-header"] {
+        position: relative;
+        z-index: 30;
+    }
+
+    .admin-shell [data-slot="sidebar-trigger"],
+    .admin-shell [data-slot="sidebar-rail"] {
+        pointer-events: auto !important;
+        cursor: pointer;
+    }
+
+    .admin-shell [data-slot="breadcrumb"],
+    .admin-shell [data-slot="breadcrumb-list"] {
+        position: relative;
+        z-index: 10;
+    }
+
+    .admin-shell [data-slot="breadcrumb-link"] {
+        pointer-events: auto !important;
+        cursor: pointer !important;
+        color: var(--muted-foreground) !important;
+        text-decoration: none !important;
+    }
+
+    .admin-shell [data-slot="breadcrumb-link"]:hover {
+        color: var(--foreground) !important;
+        text-decoration: none !important;
+    }
+
+    /* Main content — table text separate from sidebar/gate accent colors */
+    .admin-shell [data-slot="admin-main"] [data-slot="table-head"],
+    .admin-shell [data-slot="admin-main"] [data-slot="table-cell"] {
+        color: var(--brand-shell-text, var(--foreground)) !important;
+    }
+
+    /*
+     * Main content buttons: filled primary (sidebar color).
+     * Status variants (available / borrowed / success / danger) stay semantic.
+     */
+    .admin-shell [data-slot="admin-main"] [data-slot="button"]:not([data-variant="available"]):not([data-variant="borrowed"]):not([data-variant="success"]):not([data-variant="destructive"]):not([data-variant="ghost"]):not([data-variant="link"]),
+    .admin-shell [data-slot="admin-main"] .legacy-page-content a.btn,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content button.btn,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__btn"],
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__quick-action"],
+    .admin-shell [data-slot="admin-main"] .legacy-page-content .patron-dir__tab {
+        background: var(--brand-shell-button-bg, var(--brand-sidebar-bg, var(--primary))) !important;
+        color: var(--brand-shell-button-text, #ffffff) !important;
+        border-color: transparent !important;
+    }
+
+    .admin-shell [data-slot="admin-main"] [data-slot="button"]:not([data-variant="available"]):not([data-variant="borrowed"]):not([data-variant="success"]):not([data-variant="destructive"]):not([data-variant="ghost"]):not([data-variant="link"]):hover,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content a.btn:hover,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content button.btn:hover,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__btn"]:hover,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__quick-action"]:hover,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content .patron-dir__tab:hover {
+        background: color-mix(
+            in srgb,
+            var(--brand-shell-button-bg, var(--brand-sidebar-bg, var(--primary))) 82%,
+            #000000
+        ) !important;
+        color: var(--brand-shell-button-text, #ffffff) !important;
+    }
+
+    /* Keep semantic green/red buttons when modules mark them */
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__btn--success"],
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="btn-success"] {
+        background: var(--brand-status-success, #16a34a) !important;
+        color: var(--brand-status-success-text, #ffffff) !important;
+    }
+
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__btn--danger"],
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="btn-danger"],
+    .admin-shell [data-slot="admin-main"] .legacy-page-content [class*="__btn--destructive"] {
+        background: var(--brand-status-danger, #dc2626) !important;
+        color: var(--brand-status-danger-text, #ffffff) !important;
+    }
+
+    .admin-shell [data-slot="admin-main"] .legacy-page-content .patron-dir__quick-action-count,
+    .admin-shell [data-slot="admin-main"] .legacy-page-content .patron-dir__badge {
+        background: rgba(255, 255, 255, 0.22) !important;
+        color: var(--brand-shell-button-text, #ffffff) !important;
+    }
+
+    .admin-shell [data-slot="admin-main"] .catalog-filter-label {
+        color: var(--brand-shell-filter-label, var(--primary)) !important;
+    }
+
+    .legacy-page-content {
+        min-width: 0;
+    }
+
+    /* --- Mobile: Blade pages load Bootstrap + site-responsive.css (Home/Inertia does not) --- */
+    @media (max-width: 767px) {
+        body.admin-page {
+            overflow-x: hidden;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        #admin-shell-root {
+            width: 100%;
+            max-width: 100vw;
+            min-height: 100dvh;
+            overflow-x: hidden;
+        }
+
+        .admin-shell[data-slot="sidebar-wrapper"] {
+            min-height: 100dvh;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        .admin-shell [data-slot="sidebar-inset"] {
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        .admin-shell .admin-blade-slot,
+        .admin-shell .legacy-page-content {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .admin-shell .legacy-page-content > .container,
+        .admin-shell .legacy-page-content .container {
+            max-width: 100% !important;
+            width: 100% !important;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        .admin-shell .legacy-page-content .table-responsive {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .admin-shell .legacy-page-content .row {
+            margin-left: 0;
+            margin-right: 0;
+        }
+    }
+}
+
+/*
+ * Sidebar nav colors — intentionally UNLAYERED so they beat Bootstrap and legacy
+ * page stylesheets (which load without @layer). Scoped to data-sidebar attributes
+ * so desktop sidebar AND mobile drawer (portaled outside .admin-shell) stay consistent
+ * when the viewport is resized.
+ */
+[data-sidebar="menu-button"],
+[data-sidebar="menu-sub-button"] {
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    color: var(--sidebar-foreground) !important;
+    text-decoration: none !important;
+    border-radius: calc(var(--radius) - 2px) !important;
+    border-left: 3px solid transparent !important;
+    font-family: var(--font-sans) !important;
+}
+
+[data-sidebar="menu-button"]:hover:not([data-active="true"]),
+[data-sidebar="menu-sub-button"]:hover:not([data-active="true"]) {
+    background-color: color-mix(in oklch, var(--sidebar-accent) 28%, transparent) !important;
+    color: var(--sidebar-foreground) !important;
+}
+
+[data-sidebar="menu-sub-button"] {
+    padding-left: 0.5rem !important;
+}
+
+[data-sidebar="menu-button"][data-active="true"],
+[data-sidebar="menu-sub-button"][data-active="true"] {
+    border-left-color: var(--sidebar-primary) !important;
+    background-color: var(--sidebar-accent) !important;
+    color: var(--sidebar-accent-foreground) !important;
+    font-weight: 500 !important;
+}
+
+[data-sidebar="menu-button"][data-active="true"]:hover,
+[data-sidebar="menu-sub-button"][data-active="true"]:hover,
+[data-sidebar="menu-button"][data-active="true"]:focus,
+[data-sidebar="menu-sub-button"][data-active="true"]:focus,
+[data-sidebar="menu-button"][data-active="true"]:link,
+[data-sidebar="menu-sub-button"][data-active="true"]:link,
+[data-sidebar="menu-button"][data-active="true"]:visited,
+[data-sidebar="menu-sub-button"][data-active="true"]:visited {
+    color: var(--sidebar-accent-foreground) !important;
+    background-color: var(--sidebar-accent) !important;
+}
+
+[data-sidebar="menu-button"][data-active="true"] span,
+[data-sidebar="menu-sub-button"][data-active="true"] span,
+[data-sidebar="menu-button"][data-active="true"] svg,
+[data-sidebar="menu-sub-button"][data-active="true"] svg {
+    color: inherit !important;
+}
+
+[data-sidebar="menu-sub-button"] span {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+[data-slot="sidebar"] svg,
+[data-slot="sidebar-inner"] svg {
+    color: currentColor !important;
+    flex-shrink: 0 !important;
+}
+
+[data-slot="sidebar-footer"] a {
+    color: var(--sidebar-foreground) !important;
+    text-decoration: none !important;
+}
+
+[data-slot="sidebar-footer"] [data-slot="badge"] {
+    color: var(--brand-sidebar-role-text, var(--brand-text-light, #ffffff)) !important;
+}
+
+[data-slot="sidebar-header"] .sidebar-portal-text {
+    color: var(--brand-sidebar-portal-text, var(--brand-text-light, #ffffff)) !important;
+}
+
+[data-slot="sidebar-footer"] .sidebar-role-badge {
+    color: var(--brand-sidebar-role-text, var(--brand-text-light, #ffffff)) !important;
+    border-color: color-mix(
+        in srgb,
+        var(--brand-sidebar-role-text, var(--brand-text-light, #ffffff)) 40%,
+        transparent
+    ) !important;
+    background-color: color-mix(
+        in srgb,
+        var(--brand-sidebar-role-text, var(--brand-text-light, #ffffff)) 10%,
+        transparent
+    ) !important;
 }

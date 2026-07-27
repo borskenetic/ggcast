@@ -1,6 +1,9 @@
 @extends('layouts.main')
 
 @section('content')
+<div class="head">
+    <img src="{{ $brand['banner_url'] ?? asset('images/Bannernew.jpg') }}" alt="Banner" class="banner-img">
+</div>
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 custom-margin">
     <div>
         <a href="{{ route('book.index') }}" class="btn btn-all">← Back to Books</a>

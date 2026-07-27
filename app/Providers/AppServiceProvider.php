@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Support\Branding;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Carbon\Carbon;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,5 +35,7 @@ class AppServiceProvider extends ServiceProvider
         if (app()->environment('production')) {
             URL::forceScheme('https');
         }
+
+        View::share('brand', Branding::forViews());
     }
 }

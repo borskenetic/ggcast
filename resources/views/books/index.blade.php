@@ -2,6 +2,10 @@
 
 @section('content')
 
+<div class="head">
+    <img src="{{ $brand['banner_url'] ?? asset('images/Bannernew.jpg') }}" alt="Banner" class="banner-img">
+</div>
+
 @if(session('success'))
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         {{ session('success') }}

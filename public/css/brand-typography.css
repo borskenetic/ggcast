@@ -1,0 +1,59 @@
+/**
+ * System typography — uses font tokens from branding.css.
+ * Load branding.css first, then page CSS, then this file.
+ */
+
+:root {
+  --bs-body-font-family: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif);
+  --bs-font-sans-serif: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif);
+}
+
+html {
+  font-family: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: inherit;
+}
+
+:is(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .school-name) {
+  font-family: var(--brand-font-family-heading, var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif));
+}
+
+code,
+pre,
+kbd,
+samp,
+.font-monospace {
+  font-family: var(--brand-font-family-mono, ui-monospace, 'Cascadia Code', 'Segoe UI Mono', Consolas, monospace);
+}
+
+/*
+ * Legacy Blade pages ship per-module CSS with hard-coded font stacks.
+ * Scoped overrides keep icons (Font Awesome / Bootstrap Icons) untouched.
+ */
+.legacy-page-content :where(
+  p, span, a, label, li, td, th, dt, dd, small, strong, em, div,
+  h1, h2, h3, h4, h5, h6,
+  input, button, select, textarea, optgroup,
+  .btn, .form-control, .form-select, .dropdown-item, .form-label, .form-text,
+  .table, .card, .card-header, .card-body, .modal, .alert, .nav-link, .navbar, .list-group-item
+):not(:where(i, svg, [class*='fa-'], [class^='bi-'])) {
+  font-family: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif) !important;
+}
+
+.legacy-page-content :is(h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6, .school-name) {
+  font-family: var(--brand-font-family-heading, var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif)) !important;
+}
+
+/* Standalone pages (kiosk, pending, OPAC) without .legacy-page-content */
+body:not(.admin-page) :where(
+  p, span, a, label, li, td, th, dt, dd, small,
+  h1, h2, h3, h4, h5, h6,
+  input, button, select, textarea,
+  .btn, .form-control, .form-select, .dropdown-item, .table, .card, .alert
+):not(:where(i, svg, [class*='fa-'], [class^='bi-'])) {
+  font-family: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif) !important;
+}

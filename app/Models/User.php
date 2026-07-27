@@ -47,4 +47,18 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function fullName(): string
+    {
+        return trim(implode(' ', array_filter([(string) $this->fname, (string) $this->lname])));
+    }
+
+    public function initials(): string
+    {
+        $first = mb_substr((string) $this->fname, 0, 1);
+        $last = mb_substr((string) $this->lname, 0, 1);
+        $initials = strtoupper($first.$last);
+
+        return $initials !== '' ? $initials : 'U';
+    }
 }
