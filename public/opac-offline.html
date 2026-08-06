@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="">
+  <title>OPAC Offline — PANTAS</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/js/hybrid/status.css">
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f7f7f5; margin: 0; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 1rem 1.25rem 3rem; }
+    .hero { margin: 1.5rem 0 1rem; }
+    .hero h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+    .search-row { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .search-row input { flex: 1 1 16rem; min-width: 0; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .75rem; margin-top: 1.25rem; }
+    .book { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: .6rem; cursor: pointer; }
+    .book img { width: 100%; height: 140px; object-fit: cover; border-radius: 4px; background: #eee; }
+    .book .t { font-size: .85rem; font-weight: 600; margin-top: .4rem; }
+    .book .a { font-size: .75rem; color: #666; }
+    .muted { color: #666; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="hybrid-bar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;padding:.35rem .75rem;background:#fff3e0;border-bottom:1px solid #ffe082;font-size:12px;">
+    <span id="hybridStatus" class="hybrid-status-badge is-offline">Offline OPAC</span>
+    <span class="muted">Holdings may be stale · Checkout needs internet</span>
+  </div>
+  <div class="wrap">
+    <div class="hero">
+      <p class="muted mb-1">Governor Generoso College — Offline catalog</p>
+      <h1>Search the local cache</h1>
+      <p class="muted" id="cacheMeta">Loading local catalog…</p>
+    </div>
+    <form id="searchForm" class="search-row" action="javascript:void(0)">
+      <input id="q" type="search" class="form-control" placeholder="Title, author, call number, ISBN…" autocomplete="off" autofocus>
+      <button type="submit" class="btn btn-success">Search</button>
+    </form>
+    <div id="results" class="card-grid"></div>
+    <p id="empty" class="muted mt-3" style="display:none;"></p>
+  </div>
+
+  <script src="/js/hybrid/hybrid.js"></script>
+  <script>
+    (function () {
+      const H = window.GgcastHybrid;
+      const results = document.getElementById('results');
+      const empty = document.getElementById('empty');
+      const meta = document.getElementById('cacheMeta');
+
+      async function refreshMeta() {
+        const c = await H.pendingCounts();
+        meta.textContent = c.opac_titles
+          ? `${c.opac_titles} titles in offline cache on this device.`
+          : 'No catalog cache yet. Go online, open /opac, click “Download catalog cache”, then return here.';
+      }
+
+      function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = String(s ?? '');
+        return d.innerHTML;
+      }
+
+      function cover(t) {
+        if (!t.cover_image) return '/images/default-book.png';
+        if (/^https?:\/\//i.test(t.cover_image)) return t.cover_image;
+        return '/' + String(t.cover_image).replace(/^\//, '');
+      }
+
+      async function runSearch(term) {
+        const hits = await H.searchOpacLocal(term, {}, 80);
+        results.innerHTML = '';
+        if (!hits.length) {
+          empty.style.display = 'block';
+          empty.textContent = term
+            ? `No offline matches for “${term}”.`
+            : 'Type a keyword, or open this page online and download the catalog cache first.';
+          return;
+        }
+        empty.style.display = 'none';
+        hits.forEach((t) => {
+          const el = document.createElement('div');
+          el.className = 'book';
+          el.innerHTML = `
+            <img src="${esc(cover(t))}" alt="" onerror="this.src='/images/default-book.png'">
+            <div class="t">${esc(t.title_statement || 'Untitled')}</div>
+            <div class="a">${esc(t.main_author || '')}</div>
+            <div class="a">${t.is_available ? 'Available' : 'Check desk'} · ${t.copies || 1} cop.</div>`;
+          el.addEventListener('click', async () => {
+            const copies = await H.getLocalCopiesForTitle(t.title_statement, t.main_author, t.pub_year);
+            const lines = copies.length
+              ? copies.map((c) => `• ${c.accession_no || c.barcode || c.id} — ${c.availability || '?'} (${c.call_number || 'no call no.'})`).join('\n')
+              : 'No copy rows in cache.';
+            alert(`${t.title_statement || ''}\n${t.main_author || ''}\n\nHoldings (cached):\n${lines}`);
+          });
+          results.appendChild(el);
+        });
+      }
+
+      document.getElementById('searchForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        runSearch(document.getElementById('q').value.trim());
+      });
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw-hybrid.js', { scope: '/' }).catch(() => {});
+      }
+
+      H.mountStatusBadge('#hybridStatus');
+      refreshMeta();
+      // Show recent titles until user searches
+      runSearch('').then(() => {
+        // empty term returns first 80 that match empty filters = all
+      });
+    })();
+  </script>
+</body>
+</html>

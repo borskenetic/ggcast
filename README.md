@@ -53,8 +53,16 @@ PANTAS supports **hybrid** terminals: work continues without internet, then sync
 | Surface | Offline behavior | Sync |
 |---------|------------------|------|
 | `/attendance` | Local patron roster + IN/OUT queue | Pull roster + push scans via `/api/hybrid/attendance/*` |
-| `/opac` | Browse/search local catalog cache | Pull snapshot via `/hybrid/opac/snapshot` or device API |
+| `/opac` / `/opac-offline.html` | Browse/search local catalog cache | Pull snapshot via `/hybrid/opac/snapshot` or device API |
 | `/book/create` | Queue catalog drafts in IndexedDB | Push via session `/hybrid/catalog/records` or device API |
+
+**Offline OPAC kiosk steps**
+
+1. Online: open `/opac` (hard-refresh once so the new service worker at `/sw-hybrid.js` installs).
+2. Expand **Pair / sync hybrid OPAC** → paste token (or sign in as staff) → **Download catalog cache** until you see “Cached N title groups”.
+3. **Do not close or refresh yet** — DevTools → Network → Offline, or unplug the cable.
+4. Type a search and press **Search** (stays on the page; results from IndexedDB).
+5. If you reopen the browser while offline: `/opac` or `/opac-offline.html`.
 
 Device APIs (Bearer / `X-Hybrid-Token`):
 

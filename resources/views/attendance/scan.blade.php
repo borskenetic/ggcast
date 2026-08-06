@@ -172,7 +172,7 @@
     let clearDisplayTimer = null;
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register(@json(asset('js/hybrid/sw.js'))).catch(() => {});
+      navigator.serviceWorker.register('/sw-hybrid.js', { scope: '/' }).catch(() => {});
     }
 
     document.addEventListener('DOMContentLoaded', function () {

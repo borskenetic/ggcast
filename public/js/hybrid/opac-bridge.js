@@ -1,19 +1,46 @@
 /**
  * Wire OPAC search forms to hybrid offline cache.
+ * Offline search never navigates — results render on this page from IndexedDB.
  */
 (function () {
   'use strict';
+
+  function registerSw() {
+    if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+    return navigator.serviceWorker
+      .register('/sw-hybrid.js', { scope: '/' })
+      .then((reg) => {
+        // Ask SW to cache this OPAC document + assets for offline reopen
+        const urls = [
+          '/opac',
+          '/opac-offline.html',
+          location.href.split('#')[0],
+          '/js/hybrid/hybrid.js',
+          '/js/hybrid/opac-bridge.js',
+          '/js/hybrid/status.css',
+          '/vendor/bootstrap/css/bootstrap.min.css',
+          '/css/books/landing.css',
+          '/css/site-responsive.css',
+        ];
+        const post = (sw) => sw && sw.postMessage({ type: 'CACHE_URLS', urls });
+        if (reg.active) post(reg.active);
+        navigator.serviceWorker.ready.then((r) => post(r.active));
+        return reg;
+      })
+      .catch(() => null);
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     const H = window.GgcastHybrid;
     if (!H) return;
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/js/hybrid/sw.js').catch(() => {});
-    }
+    registerSw();
 
     H.mountStatusBadge('#hybridStatus');
-    H.startAutoSync({ attendance: false, opac: true, catalog: false, useSession: true, intervalMs: 120000 });
+    // Auto-pull snapshot only when online; don't spam while offline
+    if (H.isOnline()) {
+      H.startAutoSync({ attendance: false, opac: true, catalog: false, useSession: true, intervalMs: 120000 });
+    }
 
     const banner = document.getElementById('hybridOfflineBanner');
     const paintBanner = () => {
@@ -23,24 +50,65 @@
     window.addEventListener('online', paintBanner);
     window.addEventListener('offline', paintBanner);
 
-    document.getElementById('hybridTokenSave')?.addEventListener('click', () => {
+    async function downloadCache(preferSession) {
+      let p;
+      try {
+        p = preferSession
+          ? await H.pullOpacSnapshot(true)
+          : await H.pullOpacSnapshot(false);
+      } catch (e) {
+        if (H.getToken()) {
+          p = await H.pullOpacSnapshot(false);
+        } else {
+          throw e;
+        }
+      }
+      const n = (p.titles || []).length;
+      await registerSw();
+      // Persist shell so reopen works offline
+      if ('caches' in window) {
+        try {
+          const cache = await caches.open('ggcast-hybrid-shell-v3');
+          await cache.add('/opac');
+          await cache.add('/opac-offline.html');
+        } catch (e) {
+          /* ignore */
+        }
+      }
+      return n;
+    }
+
+    document.getElementById('hybridTokenSave')?.addEventListener('click', async () => {
       const v = document.getElementById('hybridTokenInput')?.value?.trim();
       if (v) H.setToken(v);
-      H.pullOpacSnapshot(false)
-        .then((p) => alert(`Cached ${(p.titles || []).length} title groups.`))
-        .catch((e) => alert(e.message || 'Cache failed'));
+      try {
+        const n = await downloadCache(false);
+        alert(
+          `Token saved. Cached ${n} title groups.\n\nKeep this OPAC tab open, then go offline and search without refreshing.\nIf you reopen offline, use /opac or /opac-offline.html`
+        );
+      } catch (e) {
+        alert(e.message || 'Cache failed. Device must allow OPAC, or use Download while signed in as staff.');
+      }
     });
 
-    document.getElementById('hybridSyncNow')?.addEventListener('click', () => {
-      H.pullOpacSnapshot(true)
-        .then((p) => alert(`Cached ${(p.titles || []).length} title groups.`))
-        .catch((e) => {
+    document.getElementById('hybridSyncNow')?.addEventListener('click', async () => {
+      try {
+        const n = await downloadCache(true);
+        alert(
+          `Cached ${n} title groups on this device.\n\nNext: stay on this page → go offline → type and Search (results stay here, no page reload).`
+        );
+      } catch (e) {
+        try {
           if (H.getToken()) {
-            return H.pullOpacSnapshot(false).then((p) => alert(`Cached ${(p.titles || []).length} title groups.`));
+            const n = await downloadCache(false);
+            alert(`Cached ${n} title groups (device token).`);
+            return;
           }
-          throw e;
-        })
-        .catch((e) => alert(e.message || 'Download failed — pair a hybrid device or stay signed in as staff.'));
+        } catch (e2) {
+          /* fall through */
+        }
+        alert(e.message || 'Download failed — pair a hybrid OPAC device token, or sign in as staff.');
+      }
     });
 
     function coverUrl(t) {
@@ -53,8 +121,15 @@
       const host = document.getElementById('hybridOfflineResults');
       if (!host) return;
       host.style.display = 'block';
+      host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Soft-hide online-only heavy sections while offline searching
+      document.querySelectorAll('.opac-hero-search, .opac-page-fill .carousel, #carouselTrack').forEach((el) => {
+        if (el) el.style.opacity = '0.35';
+      });
+
       if (!titles.length) {
-        host.innerHTML = `<div class="alert alert-warning">No offline matches for “${esc(term)}”. Sync a catalog cache while online.</div>`;
+        host.innerHTML = `<div class="alert alert-warning">No offline matches for “${esc(term)}”. While online, open Pair / sync → <strong>Download catalog cache</strong>.</div>`;
         return;
       }
       host.innerHTML = `
@@ -89,51 +164,15 @@
           const author = card.getAttribute('data-author');
           const year = card.getAttribute('data-year');
           const copies = await H.getLocalCopiesForTitle(title, author, year);
-          const group = {
-            title,
-            author,
-            year,
-            id: Number(card.getAttribute('data-id')),
-          };
-          window.selectedBook = {
-            id: Number(card.getAttribute('data-id')),
-            title,
-            author,
-            availability: card.getAttribute('data-availability'),
-            copies: Number(card.getAttribute('data-copies') || 1),
-            pubYear: year,
-          };
-          window.opacDetailPayload = {
-            group,
-            copies: copies.map((c) => ({
-              id: c.id,
-              accession_no: c.accession_no,
-              barcode: c.barcode,
-              call_number: c.call_number,
-              availability: c.availability,
-              section: c.section,
-              circulation_status: c.availability === 'Available' ? 'On shelf' : 'Checked out',
-            })),
-            description: '',
-            marc: [],
-          };
-          if (typeof openBookModal === 'function') {
-            // Prefer existing modal if openBookCard/open path exists
-          }
-          if (typeof renderHoldingsTable === 'function') {
-            renderHoldingsTable(window.opacDetailPayload.copies, group);
-          }
-          const modal = document.getElementById('bookModal') || document.querySelector('.book-modal');
-          const titleEl = document.getElementById('modalBookTitle');
-          if (titleEl) titleEl.textContent = title;
-          const authorEl = document.getElementById('modalBookAuthor');
-          if (authorEl) authorEl.textContent = author || '';
-          if (modal) {
-            modal.style.display = 'flex';
-            modal.classList.add('show');
-          } else {
-            alert(`${title}\n${author || ''}\nCopies offline: ${copies.length}`);
-          }
+          const lines = copies.length
+            ? copies
+                .map(
+                  (c) =>
+                    `• ${c.accession_no || c.barcode || c.id} — ${c.availability || '?'} (${c.call_number || '—'})`
+                )
+                .join('\n')
+            : 'No copy rows in local cache.';
+          alert(`${title}\n${author || ''}\n\nHoldings (cached):\n${lines}`);
         });
       });
     }
@@ -150,22 +189,58 @@
         .replace(/</g, '&lt;');
     }
 
-    document.querySelectorAll('form[action*="opac"], form.opac-search-form, form.opac-search-header-form, form.opac-hero-search-form').forEach((form) => {
-      form.addEventListener('submit', async (e) => {
-        if (H.isOnline()) return;
-        e.preventDefault();
-        const fd = new FormData(form);
-        const term = String(fd.get('search') || '').trim();
-        const filters = {
-          course: fd.get('course') || 'all',
-          subject_topic: fd.get('subject_topic') || 'All',
-          genre: fd.get('genre') || 'All',
-          content_type: fd.get('content_type') || 'All',
-          section: fd.get('section') || 'All',
-        };
-        const hits = await H.searchOpacLocal(term, filters, 60);
-        renderOfflineResults(hits, term || '(all cached titles)');
-      });
+    async function handleOfflineSearch(form) {
+      const fd = new FormData(form);
+      const term = String(fd.get('search') || '').trim();
+      const filters = {
+        course: fd.get('course') || 'all',
+        subject_topic: fd.get('subject_topic') || 'All',
+        genre: fd.get('genre') || 'All',
+        content_type: fd.get('content_type') || 'All',
+        section: fd.get('section') || 'All',
+      };
+      const counts = await H.pendingCounts();
+      if (!counts.opac_titles) {
+        const host = document.getElementById('hybridOfflineResults');
+        if (host) {
+          host.style.display = 'block';
+          host.innerHTML =
+            '<div class="alert alert-danger">No catalog on this device yet. Go online → Pair / sync hybrid OPAC → <strong>Download catalog cache</strong>. Then search offline without leaving this tab (or open <code>/opac-offline.html</code>).</div>';
+        }
+        return;
+      }
+      const hits = await H.searchOpacLocal(term, filters, 60);
+      renderOfflineResults(hits, term || '(browse cache)');
+    }
+
+    // Capture phase so we always win over browser navigation
+    document.addEventListener(
+      'submit',
+      (e) => {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        const isOpac =
+          form.classList.contains('opac-search-form') ||
+          form.classList.contains('opac-search-header-form') ||
+          form.classList.contains('opac-hero-search-form') ||
+          (form.getAttribute('action') || '').includes('opac');
+        if (!isOpac) return;
+
+        // Offline OR flaky network: force local path (navigation fails offline)
+        if (!H.isOnline()) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleOfflineSearch(form);
+        }
+      },
+      true
+    );
+
+    // Show cache count on badge area
+    H.pendingCounts().then((c) => {
+      if (c.opac_titles && banner) {
+        banner.dataset.cacheCount = String(c.opac_titles);
+      }
     });
   });
 })();

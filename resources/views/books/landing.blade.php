@@ -25,6 +25,10 @@
                 <button type="button" id="hybridSyncNow">Download catalog cache</button>
             </div>
         </details>
+        <p class="small text-muted mb-0 mt-1" id="hybridCacheHint">
+            Offline tip: click <strong>Download catalog cache</strong> while online, then search offline
+            <em>without refreshing</em>. Or reopen <code>/opac-offline.html</code> after a full download.
+        </p>
     </div>
     <div id="hybridOfflineBanner" class="hybrid-offline-banner" style="display:none;">
         Offline OPAC — searching the local catalog cache. Holdings may be stale. Checkout needs connectivity.
