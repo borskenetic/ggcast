@@ -209,10 +209,40 @@
       const profileImg = document.querySelector('.profile-pic img');
       const sidebar = document.querySelector('.sidebar');
       const alertSound = document.getElementById('alertSound');
+      const hybridBar = document.querySelector('.hybrid-bar');
       let isCooldown = false;
 
-      setInterval(() => input.focus(), 100);
-      input.focus();
+      /** Scanner auto-focus must not steal from pairing, modals, or other UI. */
+      function shouldHoldQrFocus() {
+        if (feedbackModal && feedbackModal.style.display === 'flex') return false;
+        if (document.activeElement) {
+          const el = document.activeElement;
+          if (el === input) return true;
+          if (hybridBar && hybridBar.contains(el)) return false;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button') return false;
+          if (el.isContentEditable) return false;
+        }
+        // Pair panel open — leave focus alone so user can click/type
+        const pairPanel = hybridBar?.querySelector('details');
+        if (pairPanel && pairPanel.open) return false;
+        return true;
+      }
+
+      function focusQrScanner() {
+        if (!shouldHoldQrFocus()) return;
+        input.focus({ preventScroll: true });
+      }
+
+      setInterval(focusQrScanner, 100);
+      focusQrScanner();
+
+      // Resume scanner focus when pairing panel is closed
+      hybridBar?.querySelector('details')?.addEventListener('toggle', (e) => {
+        if (!e.target.open) {
+          setTimeout(focusQrScanner, 50);
+        }
+      });
 
       function clearDisplay() {
         if (feedbackModal && feedbackModal.style.display === 'flex') {
