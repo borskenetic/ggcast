@@ -1,0 +1,45 @@
+.hybrid-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #a5d6a7;
+  white-space: nowrap;
+}
+.hybrid-status-badge.is-offline {
+  background: #fff3e0;
+  color: #e65100;
+  border-color: #ffcc80;
+}
+.hybrid-status-badge.has-pending {
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.25);
+}
+.hybrid-pair-panel {
+  margin: 0.5rem 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px dashed #90a4ae;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 13px;
+}
+.hybrid-pair-panel input[type="password"],
+.hybrid-pair-panel input[type="text"] {
+  width: min(100%, 28rem);
+  padding: 0.35rem 0.5rem;
+  margin: 0.25rem 0.4rem 0.25rem 0;
+}
+.hybrid-offline-banner {
+  background: #fff8e1;
+  border-bottom: 1px solid #ffe082;
+  color: #5d4037;
+  padding: 0.4rem 0.75rem;
+  font-size: 13px;
+  text-align: center;
+}

@@ -57,6 +57,7 @@ export const adminNavigation = [
             { label: 'View Pantas Users', href: '/view-users', routeName: 'users.index', routePrefix: 'users.', adminOnly: true },
             { label: 'MARC catalog frameworks', href: '/admin/catalog-frameworks', routeName: 'admin.catalog_frameworks.index', routePrefix: 'admin.catalog_frameworks.', adminOnly: true },
             { label: 'Catalog dropdown options', href: '/admin/catalog-select-options', routeName: 'admin.catalog_select_options.index', routePrefix: 'admin.catalog_select_options.', adminOnly: true },
+            { label: 'Hybrid devices', href: '/admin/hybrid-devices', routeName: 'hybrid_devices.index', routePrefix: 'hybrid_devices.', adminOnly: true },
         ],
     },
     {

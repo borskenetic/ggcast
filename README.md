@@ -42,6 +42,28 @@ Optional — 10 sample students for QR/attendance testing (`S-00000001` … `S-0
 php artisan db:seed --class=StudentSampleSeeder
 ```
 
+## Hybrid offline mode (attendance / OPAC / cataloging)
+
+PANTAS supports **hybrid** terminals: work continues without internet, then syncs when the cloud is reachable (same idea as ACD gate-terminal).
+
+1. Migrate: `php artisan migrate`
+2. As **admin**, open **Admin → Hybrid devices**, create a device (Attendance / OPAC / Catalog capabilities), copy the token once.
+3. On the kiosk/browser, open the **Pair hybrid device** panel and paste the token.
+
+| Surface | Offline behavior | Sync |
+|---------|------------------|------|
+| `/attendance` | Local patron roster + IN/OUT queue | Pull roster + push scans via `/api/hybrid/attendance/*` |
+| `/opac` | Browse/search local catalog cache | Pull snapshot via `/hybrid/opac/snapshot` or device API |
+| `/book/create` | Queue catalog drafts in IndexedDB | Push via session `/hybrid/catalog/records` or device API |
+
+Device APIs (Bearer / `X-Hybrid-Token`):
+
+- `GET /api/hybrid/health`
+- `GET /api/hybrid/attendance/roster?since=`
+- `POST /api/hybrid/attendance/scans`
+- `GET /api/hybrid/opac/snapshot?since=`
+- `POST /api/hybrid/catalog/records`
+
 Serve the app:
 
 ```bash

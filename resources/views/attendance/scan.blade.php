@@ -3,7 +3,10 @@
 <head>
   <title>Library Attendance & Book RFID</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
   <link rel="stylesheet" href="{{ asset('css/attendance/scan.css') }}">
+  <link rel="stylesheet" href="{{ asset('js/hybrid/status.css') }}">
   <link href="{{ asset('vendor/fontsource/poppins/latin-400.css') }}" rel="stylesheet">
   <link href="{{ asset('vendor/fontsource/poppins/latin-600.css') }}" rel="stylesheet">
   <link href="{{ asset('vendor/fontsource/poppins/latin-700.css') }}" rel="stylesheet">
@@ -32,9 +35,37 @@
       0% { transform: translateX(0%); }
       100% { transform: translateX(-100%); }
     }
+
+    .hybrid-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0.75rem;
+      background: #111;
+      color: #eee;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
+  <div class="hybrid-bar">
+    <span id="hybridStatus" class="hybrid-status-badge">Hybrid…</span>
+    <details class="hybrid-pair-panel" style="margin:0; background:#1a1a1a; color:#ddd; border-color:#444;">
+      <summary style="cursor:pointer;">Pair hybrid device</summary>
+      <div style="margin-top:0.4rem;">
+        <input type="password" id="hybridTokenInput" placeholder="Paste device token" autocomplete="off">
+        <button type="button" id="hybridTokenSave">Save</button>
+        <button type="button" id="hybridTokenClear">Clear</button>
+        <button type="button" id="hybridSyncNow">Sync now</button>
+      </div>
+    </details>
+  </div>
+  <div id="hybridOfflineBanner" class="hybrid-offline-banner" style="display:none;">
+    Offline mode — scans are stored on this device and will upload when online.
+  </div>
+
   <header>
     <div class="header">
       <div class="logo-title">
@@ -130,13 +161,50 @@
     </div>
   </div>
 
+  <script src="{{ asset('js/hybrid/hybrid.js') }}"></script>
   <script>
+    window.HYBRID_API_BASE = @json(url('/api/hybrid'));
+    window.HYBRID_CSRF = @json(csrf_token());
+
     const LOGOUT_FEEDBACK_ENABLED = @json($logoutFeedbackEnabled ?? true);
     const feedbackModal = document.getElementById('feedbackModal');
     let currentStudentId = null;
     let clearDisplayTimer = null;
 
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register(@json(asset('js/hybrid/sw.js'))).catch(() => {});
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+      const H = window.GgcastHybrid;
+      H.mountStatusBadge('#hybridStatus');
+      H.startAutoSync({ attendance: true, opac: false, catalog: false, intervalMs: 45000 });
+
+      const banner = document.getElementById('hybridOfflineBanner');
+      const paintBanner = () => {
+        banner.style.display = H.isOnline() ? 'none' : 'block';
+      };
+      paintBanner();
+      window.addEventListener('online', paintBanner);
+      window.addEventListener('offline', paintBanner);
+
+      document.getElementById('hybridTokenSave')?.addEventListener('click', () => {
+        const v = document.getElementById('hybridTokenInput').value.trim();
+        if (!v) return alert('Paste a token from Admin → Hybrid devices.');
+        H.setToken(v);
+        document.getElementById('hybridTokenInput').value = '';
+        H.runSyncCycle({ attendance: true, opac: false, catalog: false }).then(() => alert('Token saved. Roster sync started.'));
+      });
+      document.getElementById('hybridTokenClear')?.addEventListener('click', () => {
+        H.setToken('');
+        alert('Token cleared on this browser.');
+      });
+      document.getElementById('hybridSyncNow')?.addEventListener('click', () => {
+        H.runSyncCycle({ attendance: true, opac: false, catalog: false })
+          .then((s) => alert(s.error === 'offline' ? 'Still offline.' : 'Sync finished.'))
+          .catch((e) => alert(e.message || 'Sync failed'));
+      });
+
       const input = document.getElementById('qrcode');
       const profileImg = document.querySelector('.profile-pic img');
       const sidebar = document.querySelector('.sidebar');
@@ -177,6 +245,82 @@
         }, 500);
       }
 
+      function applyScanData(data) {
+        if (feedbackModal && feedbackModal.style.display === 'flex') {
+          closeFeedbackModal();
+        }
+        clearDisplay();
+
+        if (data.type === 'student') {
+          currentStudentId = data.student_id;
+          const pic = data.student.profile_picture
+            ? "{{ asset('') }}" + data.student.profile_picture
+            : "{{ asset('images/2x2_undifined_gender.jpg') }}";
+          profileImg.src = pic;
+
+          const div = document.createElement('div');
+          div.classList.add('name-box');
+          const offlineTag = data.offline ? ' <small>(queued offline)</small>' : '';
+          div.innerHTML = `
+            <div class="student-name">${data.student.firstname} ${data.student.lastname}${offlineTag}</div>
+            <div class="label">Name</div>
+            <div class="status-button ${data.status.toLowerCase() === 'out' ? 'status-out' : ''}">${data.status}</div>
+            <div class="timestamp">${data.log.scanned_at}</div>
+          `;
+          sidebar.appendChild(div);
+
+          const feedbackOn = data.logout_feedback_enabled ?? LOGOUT_FEEDBACK_ENABLED;
+          if (data.status.toLowerCase() === 'out' && feedbackOn && !data.offline) {
+            showLogoutFeedback();
+          } else {
+            scheduleClear(2000);
+          }
+        } else if (data.type === 'book') {
+          if (data.bookStatus.toLowerCase() === 'not checked out') {
+            alertSound.play().catch(() => {});
+          }
+          const div = document.createElement('div');
+          div.classList.add('name-box');
+          div.innerHTML = `
+            <div class="student-name">${data.book.title_statement}</div>
+            <div class="label">Book Title</div>
+            <div class="status-button ${data.bookStatus.toLowerCase() === 'not checked out' ? 'status-out' : ''}">${data.bookStatus}</div>
+          `;
+          sidebar.appendChild(div);
+          scheduleClear(2000);
+        } else if (data.type === 'error') {
+          const div = document.createElement('div');
+          div.classList.add('name-box');
+          div.innerHTML = `
+            <div class="student-name">${data.message}</div>
+            <div class="label">Error</div>
+          `;
+          sidebar.appendChild(div);
+          scheduleClear(2000);
+        }
+      }
+
+      async function processScan(raw) {
+        if (!H.isOnline()) {
+          return H.recordLocalAttendance(raw);
+        }
+
+        const formData = new FormData();
+        formData.append('qrcode', raw);
+        formData.append('_token', '{{ csrf_token() }}');
+
+        try {
+          const res = await fetch("{{ route('attendance.process') }}", {
+            method: 'POST',
+            body: formData
+          });
+          return await res.json();
+        } catch (err) {
+          // Network failure mid-request → queue offline
+          return H.recordLocalAttendance(raw);
+        }
+      }
+
       input.addEventListener('keypress', function (e) {
         if (e.key !== 'Enter') return;
         e.preventDefault();
@@ -184,71 +328,11 @@
         isCooldown = true;
         setTimeout(() => { isCooldown = false; }, 100);
 
-        const formData = new FormData();
-        formData.append('qrcode', input.value.trim().replace(/\r/g, ''));
-        formData.append('_token', '{{ csrf_token() }}');
-
-        fetch("{{ route('attendance.process') }}", {
-          method: 'POST',
-          body: formData
-        })
-          .then(res => res.json())
-          .then(data => {
-            if (feedbackModal && feedbackModal.style.display === 'flex') {
-              closeFeedbackModal();
-            }
-            clearDisplay();
-
-            if (data.type === 'student') {
-              currentStudentId = data.student_id;
-              const pic = data.student.profile_picture
-                ? "{{ asset('') }}" + data.student.profile_picture
-                : "{{ asset('images/2x2_undifined_gender.jpg') }}";
-              profileImg.src = pic;
-
-              const div = document.createElement('div');
-              div.classList.add('name-box');
-              div.innerHTML = `
-                <div class="student-name">${data.student.firstname} ${data.student.lastname}</div>
-                <div class="label">Name</div>
-                <div class="status-button ${data.status.toLowerCase() === 'out' ? 'status-out' : ''}">${data.status}</div>
-                <div class="timestamp">${data.log.scanned_at}</div>
-              `;
-              sidebar.appendChild(div);
-
-              const feedbackOn = data.logout_feedback_enabled ?? LOGOUT_FEEDBACK_ENABLED;
-              if (data.status.toLowerCase() === 'out' && feedbackOn) {
-                showLogoutFeedback();
-              } else {
-                scheduleClear(2000);
-              }
-            } else if (data.type === 'book') {
-              if (data.bookStatus.toLowerCase() === 'not checked out') {
-                alertSound.play().catch(() => {});
-              }
-              const div = document.createElement('div');
-              div.classList.add('name-box');
-              div.innerHTML = `
-                <div class="student-name">${data.book.title_statement}</div>
-                <div class="label">Book Title</div>
-                <div class="status-button ${data.bookStatus.toLowerCase() === 'not checked out' ? 'status-out' : ''}">${data.bookStatus}</div>
-              `;
-              sidebar.appendChild(div);
-              scheduleClear(2000);
-            } else if (data.type === 'error') {
-              const div = document.createElement('div');
-              div.classList.add('name-box');
-              div.innerHTML = `
-                <div class="student-name">${data.message}</div>
-                <div class="label">Error</div>
-              `;
-              sidebar.appendChild(div);
-              scheduleClear(2000);
-            }
-
-            input.value = '';
-          })
-          .catch(err => console.error(err));
+        const raw = input.value.trim().replace(/\r/g, '');
+        processScan(raw)
+          .then(applyScanData)
+          .catch(err => console.error(err))
+          .finally(() => { input.value = ''; });
       });
 
       function updateDateTime() {

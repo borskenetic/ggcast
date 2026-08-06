@@ -34,6 +34,8 @@ use App\Http\Controllers\OpenLibraryCopyCatalogController;
 use App\Http\Controllers\CatalogFrameworkAdminController;
 use App\Http\Controllers\CatalogMarcSelectOptionsController;
 use App\Http\Controllers\EmployeeIdCardController;
+use App\Http\Controllers\HybridDeviceController;
+use App\Http\Controllers\Api\HybridSyncController;
 use Carbon\Carbon;
 use App\Models\Book;
 
@@ -73,6 +75,10 @@ Route::get('/books/copies', [BookController::class, 'viewCopies'])->name('books.
 Route::get('/attendance', [AttendanceController::class, 'showScanner'])->name('attendance.scan');
 Route::post('/attendance', [AttendanceController::class, 'scan'])->name('attendance.process');
 
+// Hybrid OPAC snapshot is public for offline browse (rate-bound by app use; prefer device tokens for kiosks)
+Route::get('/hybrid/opac/snapshot', [HybridSyncController::class, 'opacSnapshotAuthenticated'])
+    ->name('hybrid.opac.snapshot');
+
 
 Route::post('/attendance-feedback', [FeedController::class, 'store'])
     ->name('attendance.feedback.store');
@@ -102,7 +108,12 @@ Route::post('/checkout/bulk', [CheckoutController::class, 'bulk'])
 // Admin + Staff
 // =============================
 Route::middleware(['auth', 'can:isAdminOrStaff'])->group(function () {
-    
+    // Hybrid sync for signed-in staff (session / CSRF)
+    Route::get('/hybrid/attendance/roster', [HybridSyncController::class, 'attendanceRosterAuthenticated'])
+        ->name('hybrid.attendance.roster');
+    Route::post('/hybrid/catalog/records', [HybridSyncController::class, 'pushCatalogAuthenticated'])
+        ->name('hybrid.catalog.records');
+
     Route::resource('book', BookController::class);
     Route::get('/book/catalog/courses-for-programs', [BookController::class, 'coursesForPrograms'])
         ->name('books.coursesForPrograms');
@@ -302,5 +313,11 @@ Route::middleware(['auth', 'can:isAdmin'])->group(function () {
         ->name('admin.catalog_select_options.store');
     Route::delete('/admin/catalog-select-options', [CatalogMarcSelectOptionsController::class, 'destroy'])
         ->name('admin.catalog_select_options.destroy');
+
+    Route::get('/admin/hybrid-devices', [HybridDeviceController::class, 'index'])->name('hybrid_devices.index');
+    Route::post('/admin/hybrid-devices', [HybridDeviceController::class, 'store'])->name('hybrid_devices.store');
+    Route::put('/admin/hybrid-devices/{hybridDevice}', [HybridDeviceController::class, 'update'])->name('hybrid_devices.update');
+    Route::post('/admin/hybrid-devices/{hybridDevice}/reissue', [HybridDeviceController::class, 'reissue'])->name('hybrid_devices.reissue');
+    Route::delete('/admin/hybrid-devices/{hybridDevice}', [HybridDeviceController::class, 'destroy'])->name('hybrid_devices.destroy');
 
 });

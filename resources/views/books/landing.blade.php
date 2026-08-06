@@ -4,14 +4,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Library catalog — OPAC</title>
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <link href="{{ asset('vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/books/landing.css') }}">
     <link rel="stylesheet" href="{{ asset('css/site-responsive.css') }}">
+    <link rel="stylesheet" href="{{ asset('js/hybrid/status.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js"></script>
 </head>
 
 <body class="opac-body">
+    <div class="hybrid-bar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;padding:.35rem .75rem;background:#f5f5f5;border-bottom:1px solid #e0e0e0;font-size:12px;">
+        <span id="hybridStatus" class="hybrid-status-badge">Hybrid…</span>
+        <details class="hybrid-pair-panel" style="margin:0;">
+            <summary style="cursor:pointer;">Pair / sync hybrid OPAC</summary>
+            <div style="margin-top:.35rem;">
+                <input type="password" id="hybridTokenInput" placeholder="Device token (optional)" autocomplete="off">
+                <button type="button" id="hybridTokenSave">Save</button>
+                <button type="button" id="hybridSyncNow">Download catalog cache</button>
+            </div>
+        </details>
+    </div>
+    <div id="hybridOfflineBanner" class="hybrid-offline-banner" style="display:none;">
+        Offline OPAC — searching the local catalog cache. Holdings may be stale. Checkout needs connectivity.
+    </div>
+    <div id="hybridOfflineResults" class="container py-3" style="display:none;"></div>
+
     @if($searchActive)
         <header class="opac-search-header" role="banner">
             <div class="opac-search-header-inner">
@@ -467,15 +486,19 @@
         window.CHECKOUT_URL = "{{ route('checkout.process') }}";
         window.CSRF_TOKEN = "{{ csrf_token() }}";
         window.OPAC_BOOK_DETAIL_BASE = @json(url('/opac/api/book').'/');
+        window.HYBRID_API_BASE = @json(url('/api/hybrid'));
+        window.HYBRID_CSRF = @json(csrf_token());
         window.LOAN_DEFAULT_DAYS = @json((int) (optional(\App\Models\FineSetting::latest('created_at')->first())->loan_duration_days ?? 7));
 
         function logout() {
             document.querySelector('header form[action*="logout"]')?.submit();
         }
     </script>
+    <script src="{{ asset('js/hybrid/hybrid.js') }}"></script>
     <script src="{{ asset('js/loan-terms.js') }}"></script>
     <script src="{{ asset('js/cart.js') }}"></script>
     <script src="{{ asset('js/landings.js') }}"></script>
+    <script src="{{ asset('js/hybrid/opac-bridge.js') }}"></script>
 </body>
 
 </html>

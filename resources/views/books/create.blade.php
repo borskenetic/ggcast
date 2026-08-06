@@ -174,6 +174,26 @@
 @endsection
 
 @section('scripts')
+<link rel="stylesheet" href="{{ asset('js/hybrid/status.css') }}">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<div class="container-fluid px-3 pb-2" style="max-width:1100px;margin:0 auto;">
+    <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between py-2">
+        <span id="hybridStatus" class="hybrid-status-badge">Hybrid…</span>
+        <div class="small text-muted" id="hybridCatalogHint">Offline saves queue locally and upload when online.</div>
+        <details class="hybrid-pair-panel" style="margin:0;">
+            <summary>Device token (optional)</summary>
+            <input type="password" id="hybridTokenInput" placeholder="hyb_…" autocomplete="off">
+            <button type="button" id="hybridTokenSave" class="btn btn-sm btn-outline-secondary">Save</button>
+            <button type="button" id="hybridPushCatalog" class="btn btn-sm btn-outline-primary">Upload queue</button>
+        </details>
+    </div>
+</div>
+<script>
+    window.HYBRID_API_BASE = @json(url('/api/hybrid'));
+    window.HYBRID_CSRF = @json(csrf_token());
+</script>
+<script src="{{ asset('js/hybrid/hybrid.js') }}"></script>
+<script src="{{ asset('js/hybrid/catalog-bridge.js') }}"></script>
 <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 @include('books.partials.catalog_tabs_script', ['formId' => 'addBookForm'])
 @include('books.partials.catalog_courses_script')

@@ -1,0 +1,16 @@
+{
+  "name": "USM PANTAS Hybrid",
+  "short_name": "PANTAS",
+  "description": "Hybrid OPAC, cataloging, and library attendance",
+  "start_url": "/opac",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1b5e20",
+  "icons": [
+    {
+      "src": "/images/pantasLogo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
