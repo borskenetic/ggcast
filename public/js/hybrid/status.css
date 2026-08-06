@@ -43,3 +43,76 @@
   font-size: 13px;
   text-align: center;
 }
+
+/* Collapsible OPAC hybrid bar */
+.hybrid-opac-shell {
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  font-family: system-ui, sans-serif;
+}
+.hybrid-bar-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.75rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  color: #374151;
+}
+.hybrid-bar-toggle:hover {
+  background: #e5e7eb;
+}
+.hybrid-bar-toggle__chevron {
+  display: inline-block;
+  width: 1rem;
+  transition: transform 0.15s ease;
+  color: #6b7280;
+}
+.hybrid-opac-shell.is-open .hybrid-bar-toggle__chevron {
+  transform: rotate(90deg);
+}
+.hybrid-bar-toggle__label {
+  font-weight: 600;
+}
+.hybrid-bar-toggle__hint {
+  margin-left: auto;
+  color: #9ca3af;
+  font-size: 11px;
+}
+.hybrid-opac-shell.is-open .hybrid-bar-toggle__hint {
+  display: none;
+}
+.hybrid-bar-body {
+  border-top: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+.hybrid-bar-body__inner {
+  padding: 0.65rem 0.85rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.hybrid-bar-intro {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+.hybrid-pair-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.hybrid-pair-row input[type="password"],
+.hybrid-pair-row input[type="text"] {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+}

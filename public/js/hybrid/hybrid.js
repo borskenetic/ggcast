@@ -388,8 +388,16 @@
 
   // ---------- OPAC ----------
 
-  async function pullOpacSnapshot(useSession = false) {
-    const since = await kvGet('opac_last_pull_at');
+  /**
+   * @param {boolean} useSession
+   * @param {{ forceFull?: boolean }} [opts]
+   */
+  async function pullOpacSnapshot(useSession = false, opts = {}) {
+    const forceFull = !!opts.forceFull;
+    if (forceFull) {
+      await kvSet('opac_last_pull_at', null);
+    }
+    const since = forceFull ? null : await kvGet('opac_last_pull_at');
     const q = since ? `?since=${encodeURIComponent(since)}` : '';
     let payload;
     try {
@@ -399,12 +407,12 @@
         payload = await webFetch(`/hybrid/opac/snapshot${q}`);
       }
     } catch (e) {
-      // Public OPAC kiosk: try device token path only failure and rethrow when no sessions
       if (getToken()) payload = await hybridFetch(`/opac/snapshot${q}`);
       else throw e;
     }
 
-    if (payload.full_snapshot) {
+    const isFull = forceFull || payload.full_snapshot;
+    if (isFull) {
       const db = await openDb();
       for (const store of ['opac_titles', 'opac_copies', 'opac_ebooks']) {
         const tx = db.transaction(store, 'readwrite');
@@ -418,6 +426,10 @@
     await putAll('opac_ebooks', payload.ebooks || []);
     if (payload.filters) await kvSet('opac_filters', payload.filters);
     if (payload.server_time) await kvSet('opac_last_pull_at', payload.server_time);
+
+    const counts = await pendingCounts();
+    payload.stored_title_count = counts.opac_titles;
+    payload.batch_title_count = (payload.titles || []).length;
     return payload;
   }
 

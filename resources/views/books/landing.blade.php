@@ -15,20 +15,26 @@
 </head>
 
 <body class="opac-body">
-    <div class="hybrid-bar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;padding:.35rem .75rem;background:#f5f5f5;border-bottom:1px solid #e0e0e0;font-size:12px;">
-        <span id="hybridStatus" class="hybrid-status-badge">Hybrid…</span>
-        <details class="hybrid-pair-panel" style="margin:0;">
-            <summary style="cursor:pointer;">Pair / sync hybrid OPAC</summary>
-            <div style="margin-top:.35rem;">
-                <input type="password" id="hybridTokenInput" placeholder="Device token (optional)" autocomplete="off">
-                <button type="button" id="hybridTokenSave">Save</button>
-                <button type="button" id="hybridSyncNow">Download catalog cache</button>
+    <div id="hybridOpacShell" class="hybrid-opac-shell">
+        <button type="button" id="hybridBarToggle" class="hybrid-bar-toggle" aria-expanded="false" aria-controls="hybridBarBody">
+            <span class="hybrid-bar-toggle__chevron" aria-hidden="true">▸</span>
+            <span id="hybridStatus" class="hybrid-status-badge">Hybrid…</span>
+            <span class="hybrid-bar-toggle__label">Hybrid / offline OPAC</span>
+            <span class="hybrid-bar-toggle__hint">tap to expand</span>
+        </button>
+        <div id="hybridBarBody" class="hybrid-bar-body" hidden>
+            <div class="hybrid-bar-body__inner">
+                <p class="hybrid-bar-intro">Download the catalog while online so this kiosk can search without internet.</p>
+                <div class="hybrid-pair-row">
+                    <input type="password" id="hybridTokenInput" placeholder="Device token (optional)" autocomplete="off">
+                    <button type="button" id="hybridTokenSave" class="btn btn-sm btn-outline-secondary">Save token</button>
+                    <button type="button" id="hybridSyncNow" class="btn btn-sm btn-success">Download catalog cache</button>
+                </div>
+                <p class="small text-muted mb-0" id="hybridCacheHint">
+                    No catalog cache yet — expand this panel and click <strong>Download catalog cache</strong> while online.
+                </p>
             </div>
-        </details>
-        <p class="small text-muted mb-0 mt-1" id="hybridCacheHint">
-            Offline tip: click <strong>Download catalog cache</strong> while online, then search offline
-            <em>without refreshing</em>. Or reopen <code>/opac-offline.html</code> after a full download.
-        </p>
+        </div>
     </div>
     <div id="hybridOfflineBanner" class="hybrid-offline-banner" style="display:none;">
         Offline OPAC — searching the local catalog cache. Holdings may be stale. Checkout needs connectivity.
