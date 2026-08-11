@@ -6,6 +6,7 @@
   'use strict';
 
   const DB_NAME = 'ggcast_hybrid_v1';
+  /** Bump when adding object stores; never ship a lower number than production clients already have. */
   const DB_VERSION = 2;
   const TOKEN_KEY = 'ggcast_hybrid_device_token';
   const META_PREFIX = 'ggcast_hybrid_meta_';
@@ -19,45 +20,82 @@
     });
   }
 
+  function createMissingStores(db) {
+    if (!db.objectStoreNames.contains('students')) {
+      const s = db.createObjectStore('students', { keyPath: 'id' });
+      s.createIndex('by_qrcode', 'qrcode', { unique: false });
+      s.createIndex('by_id_number', 'id_number', { unique: false });
+      s.createIndex('by_normalized_name', 'normalized_name', { unique: false });
+    }
+    if (!db.objectStoreNames.contains('employees')) {
+      const e = db.createObjectStore('employees', { keyPath: 'id' });
+      e.createIndex('by_qrcode', 'qrcode', { unique: false });
+      e.createIndex('by_employee_id', 'employee_id', { unique: false });
+    }
+    if (!db.objectStoreNames.contains('attendance_outbox')) {
+      const o = db.createObjectStore('attendance_outbox', { keyPath: 'client_uuid' });
+      o.createIndex('by_synced', 'synced_at', { unique: false });
+    }
+    if (!db.objectStoreNames.contains('opac_titles')) {
+      const t = db.createObjectStore('opac_titles', { keyPath: 'id' });
+      t.createIndex('by_title', 'title_statement', { unique: false });
+    }
+    if (!db.objectStoreNames.contains('opac_copies')) {
+      db.createObjectStore('opac_copies', { keyPath: 'id' });
+    }
+    if (!db.objectStoreNames.contains('opac_ebooks')) {
+      db.createObjectStore('opac_ebooks', { keyPath: 'id' });
+    }
+    if (!db.objectStoreNames.contains('catalog_outbox')) {
+      db.createObjectStore('catalog_outbox', { keyPath: 'client_uuid' });
+    }
+    if (!db.objectStoreNames.contains('kv')) {
+      db.createObjectStore('kv', { keyPath: 'key' });
+    }
+  }
+
+  function needsEmployeeStore(db) {
+    return !db.objectStoreNames.contains('employees');
+  }
+
+  /**
+   * Open hybrid IDB. Handles:
+   * - Upgrade to DB_VERSION when lower
+   * - VersionError when a stale script requests a version lower than the existing DB
+   * - Add employees store if missing even when already at DB_VERSION
+   */
   function openDb() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
-        if (!db.objectStoreNames.contains('students')) {
-          const s = db.createObjectStore('students', { keyPath: 'id' });
-          s.createIndex('by_qrcode', 'qrcode', { unique: false });
-          s.createIndex('by_id_number', 'id_number', { unique: false });
-          s.createIndex('by_normalized_name', 'normalized_name', { unique: false });
+      const finish = (db) => {
+        if (!needsEmployeeStore(db) && db.objectStoreNames.contains('students')) {
+          resolve(db);
+          return;
         }
-        if (!db.objectStoreNames.contains('employees')) {
-          const e = db.createObjectStore('employees', { keyPath: 'id' });
-          e.createIndex('by_qrcode', 'qrcode', { unique: false });
-          e.createIndex('by_employee_id', 'employee_id', { unique: false });
-        }
-        if (!db.objectStoreNames.contains('attendance_outbox')) {
-          const o = db.createObjectStore('attendance_outbox', { keyPath: 'client_uuid' });
-          o.createIndex('by_synced', 'synced_at', { unique: false });
-        }
-        if (!db.objectStoreNames.contains('opac_titles')) {
-          const t = db.createObjectStore('opac_titles', { keyPath: 'id' });
-          t.createIndex('by_title', 'title_statement', { unique: false });
-        }
-        if (!db.objectStoreNames.contains('opac_copies')) {
-          db.createObjectStore('opac_copies', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('opac_ebooks')) {
-          db.createObjectStore('opac_ebooks', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('catalog_outbox')) {
-          db.createObjectStore('catalog_outbox', { keyPath: 'client_uuid' });
-        }
-        if (!db.objectStoreNames.contains('kv')) {
-          db.createObjectStore('kv', { keyPath: 'key' });
-        }
+        // Need an upgrade to create missing stores — version must rise.
+        const nextVer = Math.max(db.version + 1, DB_VERSION);
+        try {
+          db.close();
+        } catch (_) { /* ignore */ }
+        const up = indexedDB.open(DB_NAME, nextVer);
+        up.onupgradeneeded = () => createMissingStores(up.result);
+        up.onsuccess = () => resolve(up.result);
+        up.onerror = () => reject(up.error);
       };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => createMissingStores(req.result);
+      req.onsuccess = () => finish(req.result);
+      req.onerror = () => {
+        const err = req.error;
+        // Stale cached hybrid.js (v1) vs already-upgraded DB (v2+)
+        if (err && (err.name === 'VersionError' || /less than the existing version/i.test(String(err.message || '')))) {
+          const plain = indexedDB.open(DB_NAME);
+          plain.onsuccess = () => finish(plain.result);
+          plain.onerror = () => reject(plain.error);
+          return;
+        }
+        reject(err);
+      };
     });
   }
 

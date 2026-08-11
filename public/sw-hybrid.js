@@ -1,5 +1,5 @@
 /* ggcast hybrid SW — must live at site root so scope covers /opac, /attendance, etc. */
-const CACHE = 'ggcast-hybrid-shell-v4';
+const CACHE = 'ggcast-hybrid-shell-v5';
 
 const PRECACHE = [
   '/opac-offline.html',
@@ -22,6 +22,14 @@ const SHELL_PATHS = new Set([
   '/book/create',
   '/opac-offline.html',
 ]);
+
+/** hybrid.js version bumps must not stick behind cache-first shells. */
+function isHybridCriticalScript(url) {
+  return (
+    url.pathname === '/js/hybrid/hybrid.js' ||
+    url.pathname.startsWith('/js/hybrid/hybrid.js')
+  );
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -87,7 +95,7 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // HTML navigations for OPAC / attendance → cache then network, offline fallback
+  // HTML navigations for OPAC / attendance → network then cache, offline fallback
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     if (
       url.pathname === '/opac' ||
@@ -101,6 +109,12 @@ self.addEventListener('fetch', (event) => {
     }
   }
 
+  // Always prefer network for hybrid.js so IDB schema updates deploy reliably
+  if (isHybridCriticalScript(url)) {
+    event.respondWith(networkFirstAsset(req));
+    return;
+  }
+
   if (!isShellNavigate(url)) return;
 
   event.respondWith(cacheFirstAsset(req));
@@ -111,7 +125,6 @@ async function networkThenCacheNavigate(req, url) {
   try {
     const fresh = await fetch(req);
     if (fresh && fresh.ok) {
-      // Store under clean path for offline reopen
       const pathKey = url.pathname === '/opac' || url.pathname.startsWith('/opac')
         ? '/opac'
         : url.pathname.replace(/\/$/, '') || url.pathname;
@@ -124,13 +137,11 @@ async function networkThenCacheNavigate(req, url) {
     }
     return fresh;
   } catch (e) {
-    // Offline — for OPAC always prefer dedicated offline shell
     if (url.pathname === '/opac' || url.pathname.startsWith('/opac')) {
       const offlineShell =
         (await cache.match('/opac-offline.html')) ||
         (await cache.match(new Request('/opac-offline.html')));
       if (offlineShell) {
-        // 302-like: client may need rewrite; return offline document as response
         return offlineShell;
       }
     }
@@ -158,6 +169,26 @@ async function networkThenCacheNavigate(req, url) {
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     );
   }
+}
+
+async function networkFirstAsset(req) {
+  const cache = await caches.open(CACHE);
+  try {
+    const fresh = await fetch(req, { cache: 'no-cache' });
+    if (fresh && fresh.ok) {
+      try {
+        await cache.put(req, fresh.clone());
+      } catch (e) {
+        /* ignore */
+      }
+      return fresh;
+    }
+  } catch (e) {
+    /* fall through to cache */
+  }
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  return fetch(req);
 }
 
 async function cacheFirstAsset(req) {

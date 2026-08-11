@@ -161,7 +161,7 @@
     </div>
   </div>
 
-  <script src="{{ asset('js/hybrid/hybrid.js') }}"></script>
+  <script src="{{ asset('js/hybrid/hybrid.js') }}?v=2"></script>
   <script>
     window.HYBRID_API_BASE = @json(url('/api/hybrid'));
     window.HYBRID_CSRF = @json(csrf_token());
@@ -172,7 +172,12 @@
     let clearDisplayTimer = null;
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw-hybrid.js', { scope: '/' }).catch(() => {});
+      navigator.serviceWorker.register('/sw-hybrid.js', { scope: '/' })
+        .then((reg) => {
+          // Pull updated SW that network-firsts hybrid.js
+          if (reg.update) reg.update().catch(() => {});
+        })
+        .catch(() => {});
     }
 
     document.addEventListener('DOMContentLoaded', function () {
