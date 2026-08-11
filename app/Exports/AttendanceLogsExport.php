@@ -21,9 +21,9 @@ class AttendanceLogsExport implements FromCollection, WithHeadings
     {
         return $this->logs->map(function ($log) {
             return [
-                'lastname'    => $log->student->lastname ?? 'Unknown',
-                'firstname'   => $log->student->firstname ?? 'Unknown',
-                'course'      => $log->student->course ?? 'Unknown',
+                'lastname'    => $log->patronLastName(),
+                'firstname'   => $log->patronFirstName().($log->isEmployee() ? ' (Staff)' : ''),
+                'course'      => $log->patronProgram(),
                 'status'      => strtoupper($log->status),
                 'scanned_at'  => $log->scanned_at 
                     ? Carbon::parse($log->scanned_at, 'UTC')->timezone('Asia/Manila')->format('Y-m-d h:i A')

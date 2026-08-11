@@ -62,13 +62,13 @@ class HybridSyncController extends Controller
 
         foreach ($validated['scans'] as $row) {
             $clientUuid = $row['client_uuid'];
-            $student = $scanService->resolveStudent($row['scan_token']);
+            $patron = $scanService->resolvePatron($row['scan_token']);
 
-            if (! $student) {
+            if (! $patron) {
                 $results[] = [
                     'client_uuid' => $clientUuid,
                     'accepted' => false,
-                    'error' => 'Student not found for scan token.',
+                    'error' => 'Patron not found for scan token.',
                 ];
 
                 continue;
@@ -76,15 +76,16 @@ class HybridSyncController extends Controller
 
             try {
                 $scannedAt = Carbon::parse($row['scanned_at'])->timezone(config('app.timezone'));
+                $model = $patron['type'] === 'student' ? $patron['student'] : $patron['employee'];
                 $log = $scanService->recordSyncedScan(
-                    $student,
+                    $model,
                     strtoupper((string) ($row['status'] ?? 'IN')),
                     $scannedAt,
                     $clientUuid,
                     $device,
                 );
 
-                $results[] = [
+                $entry = [
                     'client_uuid' => $clientUuid,
                     'accepted' => true,
                     'attendance_log_id' => $log->id,
@@ -92,8 +93,14 @@ class HybridSyncController extends Controller
                     'scanned_at' => $log->scanned_at
                         ? Carbon::parse($log->scanned_at)->toIso8601String()
                         : null,
-                    'student_id' => $student->id,
+                    'patron_type' => $patron['type'],
                 ];
+                if ($patron['type'] === 'student') {
+                    $entry['student_id'] = $model->id;
+                } else {
+                    $entry['employee_id'] = $model->id;
+                }
+                $results[] = $entry;
             } catch (\Throwable $e) {
                 $results[] = [
                     'client_uuid' => $clientUuid,

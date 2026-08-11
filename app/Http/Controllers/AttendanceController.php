@@ -3,14 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Http\Controllers\SMSController;
-use App\Models\AttendanceLog;
-use App\Models\Student;
-use App\Services\AttendanceSessionService;
-use App\Models\Book;
 use App\Models\Setting;
-use App\Models\BookLog;
-use Carbon\Carbon;
+use App\Services\HybridAttendanceScanService;
 
 class AttendanceController extends Controller
 {
@@ -43,130 +37,26 @@ class AttendanceController extends Controller
                 : 'Logout feedback is now disabled on the attendance scanner.'
         );
     }
-    
-    private function parseQr($raw)
-    {
-        $raw = trim(str_replace("\r", "", $raw));
-    
-        // Case 3: multiline format
-        if (str_contains($raw, "\n")) {
-            $lines = array_values(array_filter(array_map('trim', explode("\n", $raw))));
-    
-            return [
-                'student_no' => $lines[0] ?? null,
-                'full_name'  => $lines[1] ?? null,
-                'course'     => $lines[2] ?? null,
-            ];
-        }
-    
-        // Otherwise comma-separated
-        $parts = array_map('trim', explode(',', $raw));
-    
-        // If first part looks like student number (20-80556)
-        if (preg_match('/^\d{2}-\d+$/', $parts[0] ?? '')) {
-            return [
-                'student_no' => $parts[0] ?? null,
-                'full_name'  => $parts[1] ?? null,
-                'course'     => $parts[2] ?? null,
-            ];
-        }
-    
-        // Format 2 (no student number)
-        return [
-            'student_no' => null,
-            'full_name'  => $parts[0] ?? null,
-            'course'     => $parts[1] ?? null,
-        ];
-    }
 
-    public function scan(Request $request)
+    public function scan(Request $request, HybridAttendanceScanService $scanService)
     {
         $request->validate(['qrcode' => 'required|string']);
 
-        $token = trim(str_replace("\r", '', $request->qrcode));
-        $student = Student::where('qrcode', $token)->first();
+        $patron = $scanService->resolvePatron($request->qrcode);
 
-        $parsed = $this->parseQr($request->qrcode);
-
-        // ID number from multiline / comma format
-        if (! $student && $parsed['student_no']) {
-            $student = Student::where('id_number', $parsed['student_no'])->first();
-        }
-
-        if (! $student && $parsed['full_name']) {
-
-            $qrName = strtoupper($parsed['full_name']);
-            $qrName = preg_replace('/[^A-Z\s]/', '', $qrName);
-            $qrName = preg_replace('/\b[A-Z]\b/', '', $qrName);
-            $qrName = preg_replace('/\s+/', '', $qrName);
-        
-            $student = Student::where('normalized_name', $qrName)->first();
-        }
-        
-        if ($student) {
-            app(AttendanceSessionService::class)->closeStaleOpenInForStudent($student);
-
-            $lastLog = AttendanceLog::where('student_id', $student->id)
-                ->orderByDesc('scanned_at')
-                ->orderByDesc('id')
-                ->first();
-
-            $sessions = app(AttendanceSessionService::class);
-            $newStatus = ($lastLog && $sessions->isInStatus($lastLog->status)) ? 'OUT' : 'IN';
-
-            $log = AttendanceLog::create([
-                'student_id' => $student->id,
-                'status' => $newStatus,
-                'scanned_at' => Carbon::now('Asia/Manila'),
-            ]);
-            
-            // Send attendance SMS
-            if (!empty($student->mobile_number)) {
-            
-                $template = Setting::where('key', 'scan_sms')->value('value')
-                    ?? 'Hello {name}, you scanned {status} at the library at {time}.';
-            
-                $message = str_replace(
-                    ['{name}', '{status}', '{time}'],
-                    [
-                        trim($student->firstname . ' ' . $student->lastname),
-                        $newStatus,
-                        Carbon::now('Asia/Manila')->format('h:i A'),
-                    ],
-                    $template
-                );
-            
-                app(SMSController::class)->sendDirect(
-                    $student->mobile_number,
-                    $message
-                );
-            }
-    
+        if (! $patron) {
             return response()->json([
-                'type' => 'student',
-                'student_id' => $student->id,
-                'student' => [
-                    'firstname' => $student->firstname,
-                    'lastname' => $student->lastname,
-                    'profile_picture' => $student->profile_picture,
-                ],
-                'status' => $newStatus,
-                'logout_feedback_enabled' => Setting::logoutFeedbackEnabled(),
-                'log' => [
-                    'scanned_at' => $log->scanned_at->format('Y-m-d h:i:s A'),
-                ],
+                'type' => 'error',
+                'message' => 'RFID not recognized.',
             ]);
         }
 
-    
-        // Neither
-        return response()->json([
-            'type' => 'error',
-            'message' => 'RFID not recognized.'
-        ]);
+        $model = $patron['type'] === 'student' ? $patron['student'] : $patron['employee'];
+        $log = $scanService->recordLiveScan($model);
+
+        return response()->json($scanService->patronJsonResponse($model, $log));
     }
 
-    
     // Show the change video page
     public function showChangeVideo() {
         return view('attendance.change_video');

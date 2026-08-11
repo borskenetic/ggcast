@@ -15,7 +15,7 @@ class AttendanceLogController extends Controller
 {
     public function index(Request $request)
     {
-        $logs = AttendanceLog::with('student')
+        $logs = AttendanceLog::with(['student', 'employee'])
             ->when($request->from, fn($q) => $q->whereDate('scanned_at', '>=', $request->from))
             ->when($request->to, fn($q) => $q->whereDate('scanned_at', '<=', $request->to))
             ->when($request->student_name, fn($q) => $q->where('student_id', $request->student_name))
@@ -35,6 +35,13 @@ class AttendanceLogController extends Controller
                           ->orWhere('lastname', 'like', "%{$search}%")
                           ->orWhere('course', 'like', "%{$search}%")
                           ->orWhere('year', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('employee', function ($e) use ($search) {
+                        $e->where('firstname', 'like', "%{$search}%")
+                          ->orWhere('lastname', 'like', "%{$search}%")
+                          ->orWhere('employee_id', 'like', "%{$search}%")
+                          ->orWhere('department', 'like', "%{$search}%")
+                          ->orWhere('designation', 'like', "%{$search}%");
                     })
                     ->orWhere('status', 'like', "%{$search}%")
                     ->orWhere('scanned_at', 'like', "%{$search}%");
@@ -72,33 +79,7 @@ class AttendanceLogController extends Controller
 
     public function exportPdf(Request $request)
     {
-        $logs = AttendanceLog::with('student')
-            ->when($request->from, fn($q) => $q->whereDate('scanned_at', '>=', $request->from))
-            ->when($request->to, fn($q) => $q->whereDate('scanned_at', '<=', $request->to))
-            ->when($request->student_name, fn($q) => $q->where('student_id', $request->student_name))
-            ->when($request->course_code, fn($q) =>
-                $q->whereHas('student', fn($q2) => $q2->where('course', $request->course_code))
-            )
-            ->when($request->year_level, fn($q) =>
-                $q->whereHas('student', fn($q2) => $q2->where('year', $request->year_level))
-            )
-            // ⭐ FIX: add universal search
-            ->when($request->search, function ($q) use ($request) {
-                $search = $request->search;
-    
-                $q->where(function ($query) use ($search) {
-                    $query->whereHas('student', function ($s) use ($search) {
-                        $s->where('firstname', 'like', "%{$search}%")
-                          ->orWhere('lastname', 'like', "%{$search}%")
-                          ->orWhere('course', 'like', "%{$search}%")
-                          ->orWhere('year', 'like', "%{$search}%");
-                    })
-                    ->orWhere('status', 'like', "%{$search}%")
-                    ->orWhere('scanned_at', 'like', "%{$search}%");
-                });
-            })
-            ->orderBy('scanned_at', 'desc')
-            ->get();
+        $logs = $this->filteredLogs($request)->get();
     
         $pdf = Pdf::loadView('attendance_logs.pdf', compact('logs'));
         return $pdf->download('attendance_logs.pdf');
@@ -107,35 +88,45 @@ class AttendanceLogController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $logs = AttendanceLog::with('student')
-            ->when($request->from, fn($q) => $q->whereDate('scanned_at', '>=', $request->from))
-            ->when($request->to, fn($q) => $q->whereDate('scanned_at', '<=', $request->to))
-            ->when($request->student_name, fn($q) => $q->where('student_id', $request->student_name))
-            ->when($request->course_code, fn($q) =>
-                $q->whereHas('student', fn($q2) => $q2->where('course', $request->course_code))
+        $logs = $this->filteredLogs($request)->get();
+    
+        return Excel::download(new AttendanceLogsExport($logs), 'attendance_logs.xlsx');
+    }
+
+    protected function filteredLogs(Request $request)
+    {
+        return AttendanceLog::with(['student', 'employee'])
+            ->when($request->from, fn ($q) => $q->whereDate('scanned_at', '>=', $request->from))
+            ->when($request->to, fn ($q) => $q->whereDate('scanned_at', '<=', $request->to))
+            ->when($request->student_name, fn ($q) => $q->where('student_id', $request->student_name))
+            ->when($request->course_code, fn ($q) =>
+                $q->whereHas('student', fn ($q2) => $q2->where('course', $request->course_code))
             )
-            ->when($request->year_level, fn($q) =>
-                $q->whereHas('student', fn($q2) => $q2->where('year', $request->year_level))
+            ->when($request->year_level, fn ($q) =>
+                $q->whereHas('student', fn ($q2) => $q2->where('year', $request->year_level))
             )
-            // ⭐ FIX: universal search
             ->when($request->search, function ($q) use ($request) {
                 $search = $request->search;
-    
+
                 $q->where(function ($query) use ($search) {
                     $query->whereHas('student', function ($s) use ($search) {
                         $s->where('firstname', 'like', "%{$search}%")
-                          ->orWhere('lastname', 'like', "%{$search}%")
-                          ->orWhere('course', 'like', "%{$search}%")
-                          ->orWhere('year', 'like', "%{$search}%");
+                            ->orWhere('lastname', 'like', "%{$search}%")
+                            ->orWhere('course', 'like', "%{$search}%")
+                            ->orWhere('year', 'like', "%{$search}%");
                     })
-                    ->orWhere('status', 'like', "%{$search}%")
-                    ->orWhere('scanned_at', 'like', "%{$search}%");
+                        ->orWhereHas('employee', function ($e) use ($search) {
+                            $e->where('firstname', 'like', "%{$search}%")
+                                ->orWhere('lastname', 'like', "%{$search}%")
+                                ->orWhere('employee_id', 'like', "%{$search}%")
+                                ->orWhere('department', 'like', "%{$search}%")
+                                ->orWhere('designation', 'like', "%{$search}%");
+                        })
+                        ->orWhere('status', 'like', "%{$search}%")
+                        ->orWhere('scanned_at', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('scanned_at', 'desc')
-            ->get();
-    
-        return Excel::download(new AttendanceLogsExport($logs), 'attendance_logs.xlsx');
+            ->orderBy('scanned_at', 'desc');
     }
 
     public function reportsHub()

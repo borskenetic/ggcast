@@ -117,16 +117,19 @@
                     @forelse($logs as $log)
                     <tr class="border-b hover:bg-gray-50">
                         <td class="px-4 py-2">
-                            {{ $log->student ? $log->student->lastname : 'Unknown' }}
+                            {{ $log->patronLastName() }}
                         </td>
                         <td class="px-4 py-2">
-                            {{ $log->student ? $log->student->firstname : 'Unknown' }}
+                            {{ $log->patronFirstName() }}
+                            @if($log->isEmployee())
+                                <span class="text-xs text-gray-500">(Staff)</span>
+                            @endif
                         </td>
                         <td class="px-4 py-2">
-                            {{ $log->student ? $log->student->course : 'Unknown' }}
+                            {{ $log->patronProgram() }}
                         </td>
                         <td class="px-4 py-2">
-                            {{ $log->student ? $log->student->year : 'Unknown' }}
+                            {{ $log->patronYear() }}
                         </td>
                         <td class="px-4 py-2">
                             @php $status = strtolower($log->status); @endphp

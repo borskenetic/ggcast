@@ -25,9 +25,9 @@
         <tbody>
             @foreach($logs as $log)
                 <tr>
-                    <td>{{ $log->student->lastname ?? 'Unknown' }}</td>
-                    <td>{{ $log->student->firstname ?? 'Unknown' }}</td>
-                    <td>{{ $log->student->course ?? 'Unknown' }}</td> 
+                    <td>{{ $log->patronLastName() }}</td>
+                    <td>{{ $log->patronFirstName() }}{{ $log->isEmployee() ? ' (Staff)' : '' }}</td>
+                    <td>{{ $log->patronProgram() }}</td>
                     <td>{{ strtoupper($log->status) }}</td>
                     <td>
     {{ $log->scanned_at ? \Carbon\Carbon::parse($log->scanned_at, 'UTC')->timezone('Asia/Manila')->format('Y-m-d h:i A') : '—' }}                    

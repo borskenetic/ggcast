@@ -6,7 +6,7 @@
   'use strict';
 
   const DB_NAME = 'ggcast_hybrid_v1';
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const TOKEN_KEY = 'ggcast_hybrid_device_token';
   const META_PREFIX = 'ggcast_hybrid_meta_';
 
@@ -29,6 +29,11 @@
           s.createIndex('by_qrcode', 'qrcode', { unique: false });
           s.createIndex('by_id_number', 'id_number', { unique: false });
           s.createIndex('by_normalized_name', 'normalized_name', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('employees')) {
+          const e = db.createObjectStore('employees', { keyPath: 'id' });
+          e.createIndex('by_qrcode', 'qrcode', { unique: false });
+          e.createIndex('by_employee_id', 'employee_id', { unique: false });
         }
         if (!db.objectStoreNames.contains('attendance_outbox')) {
           const o = db.createObjectStore('attendance_outbox', { keyPath: 'client_uuid' });
@@ -259,13 +264,49 @@
     return null;
   }
 
-  async function recordLocalAttendance(scanToken) {
+  async function findLocalEmployee(scanToken) {
+    const token = String(scanToken || '').replace(/\r/g, '').trim();
+    if (!token) return null;
+    let employees = [];
+    try {
+      employees = await getAll('employees');
+    } catch (_) {
+      return null;
+    }
+    let hit = employees.find((e) => e.qrcode && e.qrcode === token);
+    if (hit) return hit;
+    hit = employees.find((e) => e.employee_id && e.employee_id === token);
+    if (hit) return hit;
+
+    const parsed = parseQrLocal(token);
+    if (parsed.student_no) {
+      hit = employees.find((e) => e.employee_id === parsed.student_no);
+      if (hit) return hit;
+    }
+    if (parsed.full_name) {
+      const nn = normalizeName(parsed.full_name);
+      hit = employees.find((e) => normalizeName(`${e.firstname} ${e.lastname}`) === nn);
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  async function findLocalPatron(scanToken) {
     const student = await findLocalStudent(scanToken);
-    if (! student) {
+    if (student) return { type: 'student', patron: student };
+    const employee = await findLocalEmployee(scanToken);
+    if (employee) return { type: 'employee', patron: employee };
+    return null;
+  }
+
+  async function recordLocalAttendance(scanToken) {
+    const found = await findLocalPatron(scanToken);
+    if (!found) {
       return { type: 'error', message: 'Patron not in offline roster. Sync when online.' };
     }
 
-    const last = student.last_log;
+    const { type, patron } = found;
+    const last = patron.last_log;
     const newStatus = last && String(last.status).toUpperCase() === 'IN' ? 'OUT' : 'IN';
     const scannedAt = new Date().toISOString();
     const client_uuid = uuid();
@@ -275,26 +316,29 @@
       scan_token: String(scanToken).replace(/\r/g, '').trim(),
       status: newStatus,
       scanned_at: scannedAt,
-      student_id: student.id,
+      student_id: type === 'student' ? patron.id : null,
+      employee_id: type === 'employee' ? patron.id : null,
+      patron_type: type,
       synced_at: null,
     };
 
+    const storeName = type === 'student' ? 'students' : 'employees';
     const db = await openDb();
-    const tx = db.transaction(['attendance_outbox', 'students'], 'readwrite');
+    const stores = db.objectStoreNames.contains(storeName)
+      ? ['attendance_outbox', storeName]
+      : ['attendance_outbox'];
+    const tx = db.transaction(stores, 'readwrite');
     tx.objectStore('attendance_outbox').put(row);
-    student.last_log = { status: newStatus, scanned_at: scannedAt };
-    tx.objectStore('students').put(student);
+    patron.last_log = { status: newStatus, scanned_at: scannedAt };
+    if (db.objectStoreNames.contains(storeName)) {
+      tx.objectStore(storeName).put(patron);
+    }
     await txDone(tx);
 
-    return {
-      type: 'student',
+    const picture = type === 'student' ? patron.profile_picture : patron.profile_picture;
+    const payload = {
+      type,
       offline: true,
-      student_id: student.id,
-      student: {
-        firstname: student.firstname,
-        lastname: student.lastname,
-        profile_picture: student.profile_picture,
-      },
       status: newStatus,
       logout_feedback_enabled: !!((await kvGet('attendance_settings')) || {}).logout_feedback_enabled,
       log: {
@@ -302,6 +346,25 @@
       },
       client_uuid,
     };
+
+    if (type === 'student') {
+      payload.student_id = patron.id;
+      payload.student = {
+        firstname: patron.firstname,
+        lastname: patron.lastname,
+        profile_picture: picture,
+      };
+    } else {
+      payload.employee_id = patron.id;
+      payload.employee = {
+        firstname: patron.firstname,
+        lastname: patron.lastname,
+        profile_picture: picture,
+        designation: patron.designation || patron.department,
+      };
+    }
+
+    return payload;
   }
 
   async function pullAttendanceRoster(useSession = false) {
@@ -315,29 +378,53 @@
     }
 
     if (payload.full_snapshot) {
-      // full replace
       const db = await openDb();
-      const tx = db.transaction('students', 'readwrite');
+      const stores = ['students'];
+      if (db.objectStoreNames.contains('employees')) stores.push('employees');
+      const tx = db.transaction(stores, 'readwrite');
       tx.objectStore('students').clear();
+      if (db.objectStoreNames.contains('employees')) tx.objectStore('employees').clear();
       await txDone(tx);
     }
 
     await putAll('students', payload.students || []);
+    if (payload.employees) {
+      await putAll('employees', payload.employees || []);
+    }
 
     if (payload.logs_since && payload.logs_since.length) {
       const students = await getAll('students');
-      const byId = new Map(students.map((s) => [s.id, s]));
+      const byStudentId = new Map(students.map((s) => [s.id, s]));
+      let employees = [];
+      try {
+        employees = await getAll('employees');
+      } catch (_) {}
+      const byEmployeeId = new Map(employees.map((e) => [e.id, e]));
+
       for (const log of payload.logs_since) {
-        const s = byId.get(log.student_id);
-        if (!s) continue;
-        const prev = s.last_log?.scanned_at ? new Date(s.last_log.scanned_at).getTime() : 0;
-        const cur = log.scanned_at ? new Date(log.scanned_at).getTime() : 0;
-        if (cur >= prev) {
-          s.last_log = { status: log.status, scanned_at: log.scanned_at };
-          byId.set(s.id, s);
+        if (log.student_id != null && byStudentId.has(log.student_id)) {
+          const s = byStudentId.get(log.student_id);
+          const prev = s.last_log?.scanned_at ? new Date(s.last_log.scanned_at).getTime() : 0;
+          const cur = log.scanned_at ? new Date(log.scanned_at).getTime() : 0;
+          if (cur >= prev) {
+            s.last_log = { status: log.status, scanned_at: log.scanned_at };
+            byStudentId.set(s.id, s);
+          }
+        }
+        if (log.employee_id != null && byEmployeeId.has(log.employee_id)) {
+          const e = byEmployeeId.get(log.employee_id);
+          const prev = e.last_log?.scanned_at ? new Date(e.last_log.scanned_at).getTime() : 0;
+          const cur = log.scanned_at ? new Date(log.scanned_at).getTime() : 0;
+          if (cur >= prev) {
+            e.last_log = { status: log.status, scanned_at: log.scanned_at };
+            byEmployeeId.set(e.id, e);
+          }
         }
       }
-      await putAll('students', Array.from(byId.values()));
+      await putAll('students', Array.from(byStudentId.values()));
+      if (byEmployeeId.size) {
+        await putAll('employees', Array.from(byEmployeeId.values()));
+      }
     }
 
     if (payload.settings) await kvSet('attendance_settings', payload.settings);
@@ -720,6 +807,8 @@
     hybridFetch,
     webFetch,
     findLocalStudent,
+    findLocalEmployee,
+    findLocalPatron,
     recordLocalAttendance,
     pullAttendanceRoster,
     pushAttendanceOutbox,
