@@ -25,7 +25,7 @@ class EmployeeIdCardController extends Controller
             $employee->lastname,
         ])));
 
-        $programAbbr = $this->abbreviateEmployeeProgram(
+        $programLabel = $this->formatEmployeeProgramLabel(
             $employee->program,
             $employee->department,
             $employee->position ?: $employee->designation
@@ -34,7 +34,7 @@ class EmployeeIdCardController extends Controller
         $this->composeEmployeeIdCardFront($img, [
             'photo' => $employee->formal_picture,
             'full_name' => $fullName,
-            'program_abbr' => $programAbbr,
+            'program_label' => $programLabel,
             'qrcode' => $employee->qrcode ?: ('E-'.$employee->id),
             'id_number' => $employee->employee_id ?: $employee->employee_number,
         ]);

@@ -78,65 +78,57 @@ trait ComposesEmployeeIdCard
     }
 
     /**
-     * Abbreviate long program/department names for the vertical pink bar
-     * (e.g. "Bachelor of Science in Computer Science" → "BSCS", "BSEd English" → "BSED ENG").
+     * Label for the pink side bar: keep the stored program text whenever it fits.
+     * Only shorten very long formal titles so the vertical bar stays readable.
      */
-    protected function abbreviateEmployeeProgram(?string $program, ?string $department = null, ?string $position = null): string
+    protected function formatEmployeeProgramLabel(?string $program, ?string $department = null, ?string $position = null): string
     {
         foreach ([$program, $department, $position] as $candidate) {
-            $candidate = trim((string) $candidate);
+            $candidate = trim(preg_replace('/\s+/u', ' ', (string) $candidate) ?? '');
             if ($candidate === '') {
                 continue;
             }
 
-            // Already short / acronym-like
-            if (mb_strlen($candidate) <= 12 && preg_match('/^[A-Za-z0-9.\-\s]+$/', $candidate)) {
-                // Still expand if it is a long phrase without spaces? keep as-is.
-                if (! preg_match('/\b(bachelor|master|science|education|arts|technology|department|office)\b/i', $candidate)) {
-                    return mb_strtoupper(preg_replace('/\s+/', ' ', $candidate));
-                }
+            // Keep short / mid-length labels as-is (e.g. "BSED MATH", "BSCS", "BEED", "AB English").
+            // Do not force letter-acronyms for every program.
+            if (mb_strlen($candidate) <= 30) {
+                return mb_strtoupper($candidate);
             }
 
-            $stop = ['of', 'in', 'and', 'the', 'for', 'to', 'a', 'an', 'at', 'on'];
-            $words = preg_split('/\s+/', $candidate) ?: [];
-            $abbr = '';
-            $kept = [];
-            foreach ($words as $word) {
-                $clean = preg_replace('/[^A-Za-z0-9]/', '', $word) ?? '';
-                if ($clean === '' || in_array(strtolower($clean), $stop, true)) {
-                    continue;
-                }
-                $kept[] = $clean;
-                $abbr .= mb_strtoupper(mb_substr($clean, 0, 1));
-            }
-
-            // Prefer richer short form when only a few real words (e.g. BSEd + ENG)
-            if (count($kept) >= 2 && count($kept) <= 4 && mb_strlen($abbr) <= 4) {
-                // "Bachelor Secondary Education English" style: use first letter group + last word if short
-                $last = $kept[count($kept) - 1];
-                if (mb_strlen($last) <= 4 && $abbr !== mb_strtoupper($last)) {
-                    $core = mb_substr($abbr, 0, max(1, mb_strlen($abbr) - 1));
-
-                    return trim($core.' '.mb_strtoupper($last));
-                }
-            }
-
-            if ($abbr !== '') {
-                return $abbr;
-            }
+            // Very long formal names only: use light abbreviation so the bar is not overcrowded.
+            return $this->abbreviateLongProgramName($candidate);
         }
 
         return '';
     }
 
     /**
-     * Draw vertical white program text on the pink left stripe (90° via GD, no Imagick).
-     * Text reads bottom → top, matching the reference student/personnel cards.
+     * Light acronym for long formal program titles only.
+     * "Bachelor of Science in Computer Science" → "BSCS"
      */
-    protected function drawEmployeeProgramBar($img, string $abbr): void
+    protected function abbreviateLongProgramName(string $name): string
     {
-        $abbr = trim($abbr);
-        if ($abbr === '') {
+        $stop = ['of', 'in', 'and', 'the', 'for', 'to', 'a', 'an', 'at', 'on', 'major', 'with'];
+        $words = preg_split('/\s+/u', $name) ?: [];
+        $abbr = '';
+        foreach ($words as $word) {
+            $clean = preg_replace('/[^A-Za-z0-9]/u', '', $word) ?? '';
+            if ($clean === '' || in_array(strtolower($clean), $stop, true)) {
+                continue;
+            }
+            $abbr .= mb_strtoupper(mb_substr($clean, 0, 1));
+        }
+
+        return $abbr !== '' ? $abbr : mb_strtoupper(mb_substr($name, 0, 16));
+    }
+
+    /**
+     * Draw vertical program text centered on the pink left stripe (reads bottom → top).
+     */
+    protected function drawEmployeeProgramBar($img, string $label): void
+    {
+        $label = trim($label);
+        if ($label === '') {
             return;
         }
 
@@ -145,43 +137,107 @@ trait ComposesEmployeeIdCard
             return;
         }
 
-        $size = $this->fitEmployeeIdText($abbr, 120, 64, 1100);
-        $bbox = imagettfbbox($size, 0, $fontPath, $abbr);
+        // Pink stripe usable area (template ~1988×3360), measured from front_employee.png.
+        $pinkLeft = 0;
+        $pinkRight = 455;
+        $pinkTop = 820;
+        $pinkBottom = 2698;
+        $pinkCenterX = (int) (($pinkLeft + $pinkRight) / 2);
+        $pinkCenterY = (int) (($pinkTop + $pinkBottom) / 2);
+        $maxTextLen = $pinkBottom - $pinkTop - 60; // max height after rotation
+
+        // Prefer full label; only scale the font down for longer text.
+        $size = $this->fitEmployeeIdText($label, 110, 42, $maxTextLen);
+        $bbox = imagettfbbox($size, 0, $fontPath, $label);
         if ($bbox === false) {
             return;
         }
 
-        $textW = abs($bbox[2] - $bbox[0]) + 28;
-        $textH = abs($bbox[7] - $bbox[1]) + 28;
+        $textW = abs($bbox[2] - $bbox[0]) + 32;
+        $textH = abs($bbox[7] - $bbox[1]) + 32;
         $src = imagecreatetruecolor(max(1, $textW), max(1, $textH));
         imagesavealpha($src, true);
         $transparent = imagecolorallocatealpha($src, 0, 0, 0, 127);
         imagefill($src, 0, 0, $transparent);
         $white = imagecolorallocate($src, 255, 255, 255);
 
-        $baseX = 14 - (int) $bbox[0];
-        $baseY = 14 - (int) $bbox[7];
+        $baseX = 16 - (int) $bbox[0];
+        $baseY = 16 - (int) $bbox[7];
         foreach ([[-2, 0], [2, 0], [0, -2], [0, 2], [-1, -1], [1, 1], [0, 0]] as [$ox, $oy]) {
-            imagettftext($src, $size, 0, $baseX + $ox, $baseY + $oy, $white, $fontPath, $abbr);
+            imagettftext($src, $size, 0, $baseX + $ox, $baseY + $oy, $white, $fontPath, $label);
         }
 
         $rotated = imagerotate($src, 90, $transparent);
         imagesavealpha($rotated, true);
         imagedestroy($src);
 
+        // Crop transparent padding from imagerotate so centering is accurate.
+        $rotated = $this->cropTransparentGd($rotated);
+        if ($rotated === null) {
+            return;
+        }
+
         $rotW = imagesx($rotated);
         $rotH = imagesy($rotated);
-        // Pink bar ~x 0–455, center ~228; vertical mid of content ~1400
-        $x = (int) (228 - ($rotW / 2));
-        $y = (int) (1400 - ($rotH / 2));
+        $x = (int) ($pinkCenterX - ($rotW / 2));
+        $y = (int) ($pinkCenterY - ($rotH / 2));
+        // Keep fully inside pink band
+        $x = max($pinkLeft + 4, min($x, $pinkRight - $rotW - 4));
+        $y = max($pinkTop, min($y, $pinkBottom - $rotH));
 
         $tmpPath = storage_path('app/emp_program_bar_'.uniqid('', true).'.png');
         imagepng($rotated, $tmpPath);
         imagedestroy($rotated);
 
         $bar = Image::make($tmpPath);
-        $img->insert($bar, 'top-left', max(0, $x), max(0, $y));
+        $img->insert($bar, 'top-left', $x, $y);
         @unlink($tmpPath);
+    }
+
+    /**
+     * Crop fully transparent edges of a truecolor GD image. Returns null if empty.
+     *
+     * @param  \GdImage|resource  $im
+     * @return \GdImage|resource|null
+     */
+    protected function cropTransparentGd($im)
+    {
+        $w = imagesx($im);
+        $h = imagesy($im);
+        $minX = $w;
+        $minY = $h;
+        $maxX = -1;
+        $maxY = -1;
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $rgba = imagecolorat($im, $x, $y);
+                $alpha = ($rgba & 0x7F000000) >> 24;
+                if ($alpha < 120) {
+                    $minX = min($minX, $x);
+                    $minY = min($minY, $y);
+                    $maxX = max($maxX, $x);
+                    $maxY = max($maxY, $y);
+                }
+            }
+        }
+
+        if ($maxX < $minX || $maxY < $minY) {
+            imagedestroy($im);
+
+            return null;
+        }
+
+        $cw = $maxX - $minX + 1;
+        $ch = $maxY - $minY + 1;
+        $cropped = imagecreatetruecolor($cw, $ch);
+        imagesavealpha($cropped, true);
+        $transparent = imagecolorallocatealpha($cropped, 0, 0, 0, 127);
+        imagefill($cropped, 0, 0, $transparent);
+        imagecopy($cropped, $im, 0, 0, $minX, $minY, $cw, $ch);
+        imagedestroy($im);
+
+        return $cropped;
     }
 
     /**
@@ -236,32 +292,37 @@ trait ComposesEmployeeIdCard
      * @param  array{
      *     photo:?string,
      *     full_name:string,
-     *     program_abbr:?string,
+     *     program_label:?string,
      *     qrcode:?string,
      *     id_number:?string
      * }  $data
      */
     protected function composeEmployeeIdCardFront($img, array $data)
     {
-        // Photo frame interior — fill edge-to-edge inside the green border.
-        $photoX = 1140;
-        $photoY = 830;
-        $photoSize = 700;
+        // Photo fills the green frame interior completely (no white gap under the portrait).
+        // Measured against front_employee.png @ ~1988×3360.
+        $photoX = 1138;
+        $photoY = 835;
+        $photoW = 702;
+        $photoH = 905;
 
         $photoPath = PublicAssetPath::resolve($data['photo'] ?? null);
         if ($photoPath) {
-            $profile = Image::make($photoPath)->fit($photoSize, $photoSize, function ($constraint) {
+            $profile = Image::make($photoPath)->fit($photoW, $photoH, function ($constraint) {
                 $constraint->upsize();
             });
             $img->insert($profile, 'top-left', $photoX, $photoY);
         }
 
-        // Vertical program/department abbreviation on pink stripe
-        if (! empty($data['program_abbr'])) {
+        // Vertical program label on pink stripe (centered)
+        if (! empty($data['program_label'])) {
+            $this->drawEmployeeProgramBar($img, (string) $data['program_label']);
+        } elseif (! empty($data['program_abbr'])) {
+            // Back-compat if older key is passed
             $this->drawEmployeeProgramBar($img, (string) $data['program_abbr']);
         }
 
-        // QR code (left of photo, similar to student-style reference)
+        // QR code (left of photo)
         if (! empty($data['qrcode'])) {
             $qrPath = $this->makeEmployeeQrPng((string) $data['qrcode'], 420);
             $qrImage = Image::make($qrPath);
