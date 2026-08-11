@@ -7,7 +7,7 @@ use App\Models\Employee;
 use ZipArchive;
 
 /**
- * Faculty & staff Library ID cards — distinct templates from student IDs.
+ * Faculty & staff Library ID cards — personnel templates (not student).
  */
 class EmployeeIdCardController extends Controller
 {
@@ -25,9 +25,18 @@ class EmployeeIdCardController extends Controller
             $employee->lastname,
         ])));
 
+        $programAbbr = $this->abbreviateEmployeeProgram(
+            $employee->program,
+            $employee->department,
+            $employee->position ?: $employee->designation
+        );
+
         $this->composeEmployeeIdCardFront($img, [
             'photo' => $employee->formal_picture,
             'full_name' => $fullName,
+            'program_abbr' => $programAbbr,
+            'qrcode' => $employee->qrcode ?: ('E-'.$employee->id),
+            'id_number' => $employee->employee_id ?: $employee->employee_number,
         ]);
 
         return $img->response('png');
