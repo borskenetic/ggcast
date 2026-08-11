@@ -15,10 +15,28 @@ trait ComposesEmployeeIdCard
     protected function employeeIdCardTemplate(string $side)
     {
         $name = $side === 'back' ? 'back_employee' : 'front_employee';
-        $path = PublicAssetPath::resolve("images/id_templates/{$name}.png")
-            ?? base_path("images/id_templates/{$name}.png");
+        $relative = "images/id_templates/{$name}.png";
+
+        $path = PublicAssetPath::resolve($relative)
+            ?? (is_file(public_path($relative)) ? public_path($relative) : null)
+            ?? (is_file(base_path('public/'.$relative)) ? base_path('public/'.$relative) : null);
+
+        if ($path === null || ! is_file($path)) {
+            abort(500, "Employee ID {$side} template not found at public/{$relative}. Deploy public/images/id_templates/{$name}.png.");
+        }
 
         return Image::make($path);
+    }
+
+    /**
+     * PNG response that avoids browser/proxy caching of regenerated ID cards.
+     */
+    protected function employeeIdPngResponse($img)
+    {
+        return $img->response('png')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     protected function employeeFontPath(bool $preferBold = false): string
@@ -383,9 +401,10 @@ trait ComposesEmployeeIdCard
     protected function composeEmployeeIdCardBack($img, array $data)
     {
         $valueColor = '#111111';
-        $valueSize = 58;
-        // Template y positions for Department / Year / Mobile / Address value rows.
-        // Certification paragraph stays baked into the template (do not redraw/remove it).
+        // Bolder / larger field values on the white rows
+        $valueSize = 70;
+        // Value rows on original blank back (Program / Year / Mobile / Address).
+        // Certification paragraph stays baked into the template.
         $deptY = 1895;
         $yearY = 2135;
         $mobileY = 2380;

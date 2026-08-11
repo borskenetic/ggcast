@@ -39,7 +39,7 @@ class EmployeeIdCardController extends Controller
             'id_number' => $employee->employee_id ?: $employee->employee_number,
         ]);
 
-        return $img->response('png');
+        return $this->employeeIdPngResponse($img);
     }
 
     public function back($id)
@@ -63,7 +63,7 @@ class EmployeeIdCardController extends Controller
             'signature' => $employee->employee_signature,
         ]);
 
-        return $img->response('png');
+        return $this->employeeIdPngResponse($img);
     }
 
     public function download($id)
