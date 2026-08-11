@@ -307,6 +307,35 @@ trait ComposesEmployeeIdCard
     }
 
     /**
+     * Force any uploaded photo into the fixed ID frame size.
+     * Mixed aspect ratios are normalized; crop is biased to the TOP so heads
+     * stay in frame (center-crop was cutting off hair/forehead).
+     * EXIF orientation is applied so phone photos rotate correctly.
+     */
+    protected function prepareEmployeeIdPhoto(string $photoPath, int $width, int $height)
+    {
+        // Small inner pad so hair is not clipped by the green border edge.
+        $pad = 8;
+        $innerW = max(1, $width - ($pad * 2));
+        $innerH = max(1, $height - ($pad * 2));
+
+        $photo = Image::make($photoPath);
+        if (method_exists($photo, 'orientate')) {
+            $photo->orientate();
+        }
+
+        // Force fill of the target box; never center-crop (that chops heads).
+        $photo->fit($innerW, $innerH, function ($constraint) {
+            // Allow upscale so tiny uploads still fill the frame.
+        }, 'top');
+
+        $canvas = Image::canvas($width, $height, '#ffffff');
+        $canvas->insert($photo, 'top-left', $pad, $pad);
+
+        return $canvas;
+    }
+
+    /**
      * @param  array{
      *     photo:?string,
      *     full_name:string,
@@ -317,8 +346,7 @@ trait ComposesEmployeeIdCard
      */
     protected function composeEmployeeIdCardFront($img, array $data)
     {
-        // Photo fills the green frame interior completely (no white gap under the portrait).
-        // Measured against front_employee.png @ ~1988×3360.
+        // Fixed photo frame on front_employee.png @ ~1988×3360.
         $photoX = 1138;
         $photoY = 835;
         $photoW = 702;
@@ -326,9 +354,7 @@ trait ComposesEmployeeIdCard
 
         $photoPath = PublicAssetPath::resolve($data['photo'] ?? null);
         if ($photoPath) {
-            $profile = Image::make($photoPath)->fit($photoW, $photoH, function ($constraint) {
-                $constraint->upsize();
-            });
+            $profile = $this->prepareEmployeeIdPhoto($photoPath, $photoW, $photoH);
             $img->insert($profile, 'top-left', $photoX, $photoY);
         }
 
