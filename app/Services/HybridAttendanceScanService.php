@@ -10,6 +10,7 @@ use App\Models\Setting;
 use App\Models\Student;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class HybridAttendanceScanService
 {
@@ -22,12 +23,32 @@ class HybridAttendanceScanService
      */
     public function resolvePatron(string $raw): ?array
     {
-        $student = $this->resolveStudent($raw);
+        $token = trim(str_replace("\r", '', $raw));
+        if ($token === '') {
+            return null;
+        }
+
+        // Prefer explicit library QR prefixes so staff/student codes never hit the wrong table's name search.
+        if (preg_match('/^E-\d+/i', $token)) {
+            $employee = $this->resolveEmployee($token);
+            if ($employee) {
+                return ['type' => 'employee', 'employee' => $employee];
+            }
+        }
+
+        if (preg_match('/^S-\d+/i', $token)) {
+            $student = $this->resolveStudent($token);
+            if ($student) {
+                return ['type' => 'student', 'student' => $student];
+            }
+        }
+
+        $student = $this->resolveStudent($token);
         if ($student) {
             return ['type' => 'student', 'student' => $student];
         }
 
-        $employee = $this->resolveEmployee($raw);
+        $employee = $this->resolveEmployee($token);
         if ($employee) {
             return ['type' => 'employee', 'employee' => $employee];
         }
@@ -39,6 +60,11 @@ class HybridAttendanceScanService
     {
         $token = trim(str_replace("\r", '', $raw));
         if ($token === '') {
+            return null;
+        }
+
+        // Employee QR prefixes never apply to students — skip costly/failing paths.
+        if (preg_match('/^E-\d+/i', $token)) {
             return null;
         }
 
@@ -56,11 +82,17 @@ class HybridAttendanceScanService
             }
         }
 
-        if (! empty($parsed['full_name'])) {
+        if (
+            ! empty($parsed['full_name'])
+            && ! $this->looksLikeIdToken($parsed['full_name'])
+            && Schema::hasColumn('students', 'normalized_name')
+        ) {
             $qrName = $this->normalizeName($parsed['full_name']);
-            $student = Student::where('normalized_name', $qrName)->first();
-            if ($student) {
-                return $student;
+            if ($qrName !== '') {
+                $student = Student::where('normalized_name', $qrName)->first();
+                if ($student) {
+                    return $student;
+                }
             }
         }
 
@@ -75,12 +107,17 @@ class HybridAttendanceScanService
             return null;
         }
 
+        // Student QR prefixes never apply to employees.
+        if (preg_match('/^S-\d+/i', $token)) {
+            return null;
+        }
+
         $employee = Employee::where('qrcode', $token)->first();
         if ($employee) {
             return $employee;
         }
 
-        // Bare business employee ID (FAC-…, numeric, etc.)
+        // Bare business employee ID (FAC-…, FT-…, etc.)
         $employee = Employee::where('employee_id', $token)->first();
         if ($employee) {
             return $employee;
@@ -95,10 +132,9 @@ class HybridAttendanceScanService
             }
         }
 
-        if (! empty($parsed['full_name'])) {
+        if (! empty($parsed['full_name']) && ! $this->looksLikeIdToken($parsed['full_name'])) {
             $qrName = $this->normalizeName($parsed['full_name']);
             if ($qrName !== '') {
-                // Match normalized full name (same rules as students.normalized_name)
                 $employee = Employee::query()
                     ->whereRaw(
                         "REPLACE(REPLACE(UPPER(CONCAT(COALESCE(firstname,''), ' ', COALESCE(lastname,''))), ' ', ''), '.', '') = ?",
@@ -112,6 +148,15 @@ class HybridAttendanceScanService
         }
 
         return null;
+    }
+
+    /** True for library QR / code-like tokens, not personal names. */
+    protected function looksLikeIdToken(string $value): bool
+    {
+        $value = trim($value);
+
+        return (bool) preg_match('/^(E|S)-\d+/i', $value)
+            || (bool) preg_match('/^[A-Z]{1,6}-\d+/i', $value);
     }
 
     /**

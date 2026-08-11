@@ -40,6 +40,10 @@ class HybridSyncController extends Controller
             return response()->json(['message' => 'Invalid since timestamp.'], 422);
         }
 
+        /** @var HybridDevice|null $device */
+        $device = $request->attributes->get('hybrid_device');
+        $device?->touchSynced();
+
         return response()->json($roster->build($since));
     }
 

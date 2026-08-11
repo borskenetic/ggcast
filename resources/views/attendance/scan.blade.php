@@ -206,9 +206,36 @@
       });
       document.getElementById('hybridSyncNow')?.addEventListener('click', () => {
         H.runSyncCycle({ attendance: true, opac: false, catalog: false })
-          .then((s) => alert(s.error === 'offline' ? 'Still offline.' : 'Sync finished.'))
+          .then((s) => {
+            if (s.error === 'offline') {
+              alert('Still offline.');
+              return;
+            }
+            const pullErr = s.pulled?.attendance_error;
+            const pushErr = s.pushed?.attendance_error;
+            if (pullErr || pushErr) {
+              alert(
+                'Sync had issues:\n'
+                + (pullErr ? 'Pull: ' + pullErr + '\n' : '')
+                + (pushErr ? 'Push: ' + pushErr : '')
+                + (!getTokenHint(H) ? '\n\nTip: paste a hybrid device token, then Sync again so Admin → Hybrid devices shows a sync time.' : '')
+              );
+              return;
+            }
+            const count = s.pending?.students ?? '';
+            alert(
+              'Roster sync finished.'
+              + (getTokenHint(H)
+                ? ' Device sync time will update under Admin → Hybrid devices.'
+                : ' (Session only — device “Last sync” stays empty until a device token is saved.)')
+            );
+          })
           .catch((e) => alert(e.message || 'Sync failed'));
       });
+
+      function getTokenHint(H) {
+        try { return !!(H.getToken && H.getToken()); } catch (_) { return false; }
+      }
 
       const input = document.getElementById('qrcode');
       const profileImg = document.querySelector('.profile-pic img');
