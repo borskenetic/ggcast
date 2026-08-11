@@ -384,8 +384,8 @@ trait ComposesEmployeeIdCard
     {
         $valueColor = '#111111';
         $valueSize = 58;
-        // Template y positions for Department / Year / Mobile / Address rows after cert was removed.
-        // These stay on original band Ys of the baked template (labels already on image).
+        // Template y positions for Department / Year / Mobile / Address value rows.
+        // Certification paragraph stays baked into the template (do not redraw/remove it).
         $deptY = 1895;
         $yearY = 2135;
         $mobileY = 2380;
