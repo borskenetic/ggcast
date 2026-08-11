@@ -2,32 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\ComposesLibraryIdCard;
+use App\Http\Controllers\Concerns\ComposesEmployeeIdCard;
 use App\Models\Employee;
 use ZipArchive;
 
 /**
- * Faculty & staff ID cards — same layout and templates as student IDs.
+ * Faculty & staff Library ID cards — distinct templates from student IDs.
  */
 class EmployeeIdCardController extends Controller
 {
-    use ComposesLibraryIdCard;
+    use ComposesEmployeeIdCard;
 
     public function front($id)
     {
         $employee = Employee::findOrFail($id);
-        $img = $this->idCardTemplate('front');
+        $img = $this->employeeIdCardTemplate('front');
 
-        $subtitle = $employee->department
-            ?: $employee->program
-            ?: $employee->designation
-            ?: $employee->position;
+        $middle = trim((string) ($employee->middle_initial ?? ''));
+        $fullName = trim(implode(' ', array_filter([
+            $employee->firstname,
+            $middle !== '' ? rtrim($middle, '.').'.' : null,
+            $employee->lastname,
+        ])));
 
-        $this->composeIdCardFront($img, [
+        $this->composeEmployeeIdCardFront($img, [
             'photo' => $employee->formal_picture,
-            'full_name' => trim("{$employee->firstname} {$employee->lastname}"),
-            'subtitle' => $subtitle,
-            'id_number' => $employee->employee_id ?: $employee->employee_number,
+            'full_name' => $fullName,
         ]);
 
         return $img->response('png');
@@ -36,15 +36,22 @@ class EmployeeIdCardController extends Controller
     public function back($id)
     {
         $employee = Employee::findOrFail($id);
-        $img = $this->idCardTemplate('back');
+        $img = $this->employeeIdCardTemplate('back');
 
-        $this->composeIdCardBack($img, [
-            'qrcode' => $employee->qrcode ?: ('E-'.$employee->id),
-            'signature' => $employee->employee_signature,
-            'emergency_person' => $employee->emergency_contact_name,
-            'emergency_relationship' => $employee->emergency_contact_relationship,
-            'emergency_number' => $employee->emergency_contact_number,
+        $department = $employee->department
+            ?: $employee->designation
+            ?: $employee->position
+            ?: $employee->program;
+
+        $this->composeEmployeeIdCardBack($img, [
             'birth_date' => $employee->birth_date,
+            'blood_type' => $employee->blood_type,
+            'sex' => $employee->sex,
+            'department' => $department,
+            'year_start_work' => $employee->year_start_work,
+            'mobile_number' => $employee->mobile_number,
+            'address' => $employee->address,
+            'signature' => $employee->employee_signature,
         ]);
 
         return $img->response('png');

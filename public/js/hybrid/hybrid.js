@@ -457,6 +457,45 @@
     return true;
   }
 
+  /** Resolve catalog cover URL the same way OPAC Blade does (storage/ + defaultBook.png). */
+  function resolveCoverUrl(raw) {
+    const FALLBACK = '/images/defaultBook.png';
+    if (!raw) return FALLBACK;
+    const s = String(raw).trim();
+    if (!s) return FALLBACK;
+    if (/^https?:\/\//i.test(s) || s.startsWith('data:')) return s;
+    // Already a public web path
+    if (s.startsWith('/storage/') || s.startsWith('/images/')) return s;
+    if (s.startsWith('storage/')) return '/' + s;
+    // DB value is usually relative like "covers/xyz.jpg" under public/storage
+    if (s.startsWith('/')) {
+      // "/covers/..." was wrong historically — remap into storage when it looks like a cover path
+      if (s.startsWith('/covers/') || s.startsWith('/ebooks/')) return '/storage' + s;
+      return s;
+    }
+    return '/storage/' + s.replace(/^\//, '');
+  }
+
+  /**
+   * Wire <img> failure once so a missing default never loops (blink storm).
+   */
+  function bindCoverImg(img, url) {
+    if (!img) return;
+    const FALLBACK = '/images/defaultBook.png';
+    let triedFallback = false;
+    img.onerror = function () {
+      if (triedFallback) {
+        img.onerror = null;
+        img.removeAttribute('src');
+        img.style.background = '#e5e7eb';
+        return;
+      }
+      triedFallback = true;
+      img.src = FALLBACK;
+    };
+    img.src = resolveCoverUrl(url);
+  }
+
   async function searchOpacLocal(term, filters = {}, limit = 40) {
     const titles = await getAll('opac_titles');
     const q = String(term || '').trim();
@@ -688,6 +727,8 @@
     searchOpacLocal,
     getLocalTitle,
     getLocalCopiesForTitle,
+    resolveCoverUrl,
+    bindCoverImg,
     enqueueCatalogRecord,
     pushCatalogOutbox,
     pendingCounts,

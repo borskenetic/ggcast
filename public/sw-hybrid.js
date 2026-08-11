@@ -1,5 +1,5 @@
 /* ggcast hybrid SW — must live at site root so scope covers /opac, /attendance, etc. */
-const CACHE = 'ggcast-hybrid-shell-v3';
+const CACHE = 'ggcast-hybrid-shell-v4';
 
 const PRECACHE = [
   '/opac-offline.html',
@@ -124,7 +124,17 @@ async function networkThenCacheNavigate(req, url) {
     }
     return fresh;
   } catch (e) {
-    // Offline
+    // Offline — for OPAC always prefer dedicated offline shell
+    if (url.pathname === '/opac' || url.pathname.startsWith('/opac')) {
+      const offlineShell =
+        (await cache.match('/opac-offline.html')) ||
+        (await cache.match(new Request('/opac-offline.html')));
+      if (offlineShell) {
+        // 302-like: client may need rewrite; return offline document as response
+        return offlineShell;
+      }
+    }
+
     let cached =
       (await cache.match(req)) ||
       (await cache.match('/opac')) ||
@@ -132,8 +142,8 @@ async function networkThenCacheNavigate(req, url) {
 
     if (url.pathname.startsWith('/opac')) {
       cached =
-        (await cache.match('/opac')) ||
         (await cache.match('/opac-offline.html')) ||
+        (await cache.match('/opac')) ||
         cached;
     }
     if (url.pathname.startsWith('/attendance')) {
@@ -144,7 +154,7 @@ async function networkThenCacheNavigate(req, url) {
     const offline = await cache.match('/opac-offline.html');
     if (offline) return offline;
     return new Response(
-      '<!DOCTYPE html><html><body style="font-family:sans-serif;padding:2rem"><h1>Offline</h1><p>Open OPAC once while online, click <strong>Download catalog cache</strong>, then stay on this kiosk.</p><p><a href="/opac-offline.html">Open offline OPAC</a></p></body></html>',
+      '<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=/opac-offline.html"></head><body style="font-family:sans-serif;padding:2rem"><p>Offline — <a href="/opac-offline.html">Open offline OPAC</a></p></body></html>',
       { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     );
   }

@@ -26,7 +26,8 @@
 <body>
   <div class="hybrid-bar" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between;padding:.35rem .75rem;background:#fff3e0;border-bottom:1px solid #ffe082;font-size:12px;">
     <span id="hybridStatus" class="hybrid-status-badge is-offline">Offline OPAC</span>
-    <span class="muted">Holdings may be stale · Checkout needs internet</span>
+    <span class="muted" id="connectivityHint">Holdings may be stale · Checkout needs internet</span>
+    <a href="/opac" id="backOnlineLink" class="btn btn-sm btn-outline-success" style="display:none;">Back to full OPAC</a>
   </div>
   <div class="wrap">
     <div class="hero">
@@ -49,6 +50,23 @@
       const results = document.getElementById('results');
       const empty = document.getElementById('empty');
       const meta = document.getElementById('cacheMeta');
+      const backLink = document.getElementById('backOnlineLink');
+      const hint = document.getElementById('connectivityHint');
+
+      function paintOnlineState() {
+        const online = H.isOnline();
+        if (backLink) backLink.style.display = online ? 'inline-block' : 'none';
+        if (hint) {
+          hint.textContent = online
+            ? 'Network is back — you can return to the full OPAC.'
+            : 'Holdings may be stale · Checkout needs internet';
+        }
+        const badge = document.getElementById('hybridStatus');
+        if (badge) {
+          badge.classList.toggle('is-offline', !online);
+          badge.textContent = online ? 'Online · offline shell' : 'Offline OPAC';
+        }
+      }
 
       async function refreshMeta() {
         const c = await H.pendingCounts();
@@ -64,9 +82,8 @@
       }
 
       function cover(t) {
-        if (!t.cover_image) return '/images/default-book.png';
-        if (/^https?:\/\//i.test(t.cover_image)) return t.cover_image;
-        return '/' + String(t.cover_image).replace(/^\//, '');
+        if (t.cover_url) return H.resolveCoverUrl(t.cover_url);
+        return H.resolveCoverUrl(t.cover_image);
       }
 
       async function runSearch(term) {
@@ -76,24 +93,30 @@
           empty.style.display = 'block';
           empty.textContent = term
             ? `No offline matches for “${term}”.`
-            : 'Type a keyword, or open this page online and download the catalog cache first.';
+            : 'Type a keyword, or open /opac online and download the catalog cache first.';
           return;
         }
         empty.style.display = 'none';
         hits.forEach((t) => {
           const el = document.createElement('div');
           el.className = 'book';
-          el.innerHTML = `
-            <img src="${esc(cover(t))}" alt="" onerror="this.src='/images/default-book.png'">
-            <div class="t">${esc(t.title_statement || 'Untitled')}</div>
-            <div class="a">${esc(t.main_author || '')}</div>
-            <div class="a">${t.is_available ? 'Available' : 'Check desk'} · ${t.copies || 1} cop.</div>`;
+          const img = document.createElement('img');
+          img.alt = '';
+          img.style.background = '#e5e7eb';
+          H.bindCoverImg(img, cover(t));
+          const info = document.createElement('div');
+          info.innerHTML =
+            '<div class="t">' + esc(t.title_statement || 'Untitled') + '</div>' +
+            '<div class="a">' + esc(t.main_author || '') + '</div>' +
+            '<div class="a">' + (t.is_available ? 'Available' : 'Check desk') + ' · ' + (t.copies || 1) + ' cop.</div>';
+          el.appendChild(img);
+          el.appendChild(info);
           el.addEventListener('click', async () => {
             const copies = await H.getLocalCopiesForTitle(t.title_statement, t.main_author, t.pub_year);
             const lines = copies.length
-              ? copies.map((c) => `• ${c.accession_no || c.barcode || c.id} — ${c.availability || '?'} (${c.call_number || 'no call no.'})`).join('\n')
+              ? copies.map((c) => '• ' + (c.accession_no || c.barcode || c.id) + ' — ' + (c.availability || '?') + ' (' + (c.call_number || 'no call no.') + ')').join('\n')
               : 'No copy rows in cache.';
-            alert(`${t.title_statement || ''}\n${t.main_author || ''}\n\nHoldings (cached):\n${lines}`);
+            alert((t.title_statement || '') + '\n' + (t.main_author || '') + '\n\nHoldings (cached):\n' + lines);
           });
           results.appendChild(el);
         });
@@ -109,11 +132,19 @@
       }
 
       H.mountStatusBadge('#hybridStatus');
+      paintOnlineState();
+      window.addEventListener('online', paintOnlineState);
+      window.addEventListener('offline', paintOnlineState);
       refreshMeta();
-      // Show recent titles until user searches
-      runSearch('').then(() => {
-        // empty term returns first 80 that match empty filters = all
-      });
+
+      const params = new URLSearchParams(location.search);
+      const initial = (params.get('q') || params.get('search') || '').trim();
+      if (initial) {
+        document.getElementById('q').value = initial;
+        runSearch(initial);
+      } else {
+        runSearch('');
+      }
     })();
   </script>
 </body>

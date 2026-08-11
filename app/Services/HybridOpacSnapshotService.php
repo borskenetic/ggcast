@@ -69,6 +69,10 @@ class HybridOpacSnapshotService
                 'section' => $book->section,
                 'course' => $book->course,
                 'cover_image' => $book->cover_image,
+                // Absolute path used by OPAC Blade (storage/) so clients never invent wrong URLs
+                'cover_url' => $book->cover_image
+                    ? asset('storage/'.ltrim((string) $book->cover_image, '/'))
+                    : asset('images/defaultBook.png'),
                 'publisher' => $book->publisher,
                 'general_note' => $book->general_note,
                 'copies' => (int) $row->copies,

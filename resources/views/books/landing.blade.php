@@ -11,6 +11,16 @@
     <link rel="stylesheet" href="{{ asset('css/books/landing.css') }}">
     <link rel="stylesheet" href="{{ asset('css/site-responsive.css') }}">
     <link rel="stylesheet" href="{{ asset('js/hybrid/status.css') }}">
+    <script>
+        // If the kiosk loses connectivity, jump to the offline-capable OPAC shell.
+        (function () {
+            if (navigator.onLine) return;
+            var params = new URLSearchParams(window.location.search);
+            var q = params.get('search') || params.get('q') || '';
+            var dest = '/opac-offline.html' + (q ? ('?q=' + encodeURIComponent(q)) : '');
+            window.location.replace(dest);
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js"></script>
 </head>
 
@@ -29,6 +39,7 @@
                     <input type="password" id="hybridTokenInput" placeholder="Device token (optional)" autocomplete="off">
                     <button type="button" id="hybridTokenSave" class="btn btn-sm btn-outline-secondary">Save token</button>
                     <button type="button" id="hybridSyncNow" class="btn btn-sm btn-success">Download catalog cache</button>
+                    <a href="/opac-offline.html" id="hybridOpenOffline" class="btn btn-sm btn-outline-primary">Open offline OPAC</a>
                 </div>
                 <p class="small text-muted mb-0" id="hybridCacheHint">
                     No catalog cache yet — expand this panel and click <strong>Download catalog cache</strong> while online.
@@ -37,7 +48,8 @@
         </div>
     </div>
     <div id="hybridOfflineBanner" class="hybrid-offline-banner" style="display:none;">
-        Offline OPAC — searching the local catalog cache. Holdings may be stale. Checkout needs connectivity.
+        Offline — redirecting to offline OPAC…
+        <a href="/opac-offline.html" class="ms-2">Open now</a>
     </div>
     <div id="hybridOfflineResults" class="container py-3" style="display:none;"></div>
 
