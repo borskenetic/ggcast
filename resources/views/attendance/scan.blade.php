@@ -344,12 +344,29 @@
         try {
           const res = await fetch("{{ route('attendance.process') }}", {
             method: 'POST',
-            body: formData
+            body: formData,
+            headers: { Accept: 'application/json' },
           });
-          return await res.json();
+          const data = await res.json().catch(() => null);
+          if (data && data.type) {
+            return data;
+          }
+          return {
+            type: 'error',
+            message: res.ok
+              ? 'Invalid scanner response.'
+              : 'Attendance server error. Try again.',
+          };
         } catch (err) {
-          // Network failure mid-request → queue offline
-          return H.recordLocalAttendance(raw);
+          // Network failure mid-request → queue offline if roster already has this patron
+          const local = await H.recordLocalAttendance(raw);
+          if (local.type === 'error') {
+            return {
+              type: 'error',
+              message: 'Could not reach server and patron is not in the offline roster. Check connection or use Sync now.',
+            };
+          }
+          return local;
         }
       }
 
