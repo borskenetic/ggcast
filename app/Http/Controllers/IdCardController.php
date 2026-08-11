@@ -15,14 +15,22 @@ class IdCardController extends Controller
         $student = Student::findOrFail($id);
         $img = $this->idCardTemplate('front');
 
+        $middle = trim((string) ($student->middle_initial ?? ''));
+        $fullName = trim(implode(' ', array_filter([
+            $student->firstname,
+            $middle !== '' ? rtrim($middle, '.').'.' : null,
+            $student->lastname,
+        ])));
+
         $this->composeIdCardFront($img, [
             'photo' => $student->profile_picture,
-            'full_name' => trim("{$student->firstname} {$student->lastname}"),
-            'subtitle' => $student->course,
+            'full_name' => $fullName,
+            'program_label' => $this->formatStudentProgramLabel($student->course),
+            'qrcode' => $student->qrcode ?: ('S-'.$student->id),
             'id_number' => $student->id_number,
         ]);
 
-        return $img->response('png');
+        return $this->studentIdPngResponse($img);
     }
 
     public function back($id)
@@ -31,15 +39,18 @@ class IdCardController extends Controller
         $img = $this->idCardTemplate('back');
 
         $this->composeIdCardBack($img, [
-            'qrcode' => $student->qrcode,
-            'signature' => $student->student_signature,
+            'birth_date' => $student->birthday,
+            'blood_type' => $student->blood_type ?? null,
+            'sex' => $student->sex ?? null,
+            'year' => $student->year,
             'emergency_person' => $student->emergency_person,
             'emergency_relationship' => $student->emergency_relationship,
             'emergency_number' => $student->emergency_number,
-            'birth_date' => $student->birthday,
+            'emergency_address' => $student->emergency_address,
+            'signature' => $student->student_signature,
         ]);
 
-        return $img->response('png');
+        return $this->studentIdPngResponse($img);
     }
 
     public function download($id)
