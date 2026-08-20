@@ -1,156 +1,279 @@
-/* General Setup */
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f8f8f8; /* Light background for the whole page */
-    padding: 20px;
+/* Feedback page — uses per-school tokens from branding.css */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body.feedback-page {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif);
+    color: var(--brand-text-dark, #333);
+    background:
+        radial-gradient(circle at top right, color-mix(in srgb, var(--brand-primary, #ffd700) 12%, transparent), transparent 42%),
+        linear-gradient(160deg, var(--brand-shell-muted, #f4f6f9) 0%, #eef2f7 100%);
     line-height: 1.6;
 }
 
-.page-title {
-    text-align: center;
-    font-size: 2em;
-    font-weight: bold;
-    margin-bottom: 40px;
-    color: #333;
-}
-
-.article-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px 0;
-}
-
-
-/* --- Main Navigation Bar --- */
-.main-nav-bar {
-    padding: 15px 0;
-    background-color: #fff;
-}
-
-.nav-container {
+.feedback-page-wrapper {
+    min-height: 100vh;
     display: flex;
+    flex-direction: column;
+}
+
+/* Top bar */
+.feedback-topbar {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--brand-page-bg, #fff);
+    border-bottom: 1px solid var(--brand-shell-border, #e5e7eb);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.feedback-back-btn {
+    display: inline-flex;
     align-items: center;
-}
-
-/* Logo and University Text */
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.logo-uap {
-    font-size: 3em;
-    font-weight: bold;
-    color: #000;
-    /* In a real implementation, you'd use an image or adjust the P color */
-}
-
-.logo-text {
-    font-size: 1.1em;
-    font-weight: 100; /* Extra bold */
-    line-height: 1.1;
-    color: #000;
-}
-
-/* Navigation Links */
-nav ul {
-    list-style: none;
-    display: flex;
-}
-
-nav ul li a {
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    background: var(--brand-page-bg, #fff);
+    color: var(--brand-nav-link, var(--brand-blue, #1f4ea7));
+    font-size: 0.9rem;
+    font-weight: 600;
     text-decoration: none;
-    color: #000;
-    font-weight: 100; /* Matches the bold text in the image */
-    padding: 0 15px;
-    font-size: 0.9em;
-    letter-spacing: 0.5px;
-    transition: color 0.2s;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
 }
 
-nav ul li a:hover {
-    color: #f7a600; /* Optional: A hover effect */
+.feedback-back-btn:hover {
+    background: var(--brand-nav-hover-bg, #fff);
+    color: var(--brand-nav-hover-text, var(--brand-green-dark, #2e7d32));
+    border-color: color-mix(in srgb, var(--brand-nav-link, #1f4ea7) 35%, var(--brand-shell-border, #e5e7eb));
+    transform: translateX(-2px);
 }
 
-
-/* Media Query for Responsiveness */
-@media (max-width: 992px) {
-    .top-bar-content {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 10px;
-    }
-    
-    .contact-item {
-        margin-right: 10px;
-    }
-
-    .nav-container {
-        flex-direction: column;
-        gap: 20px;
-    }
-    
-    nav ul {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    nav ul li a {
-        padding: 5px 10px;
-    }
+.feedback-logo {
+    max-height: 44px;
+    width: auto;
+    object-fit: contain;
 }
 
-body, html {
-  height: 100%;
-  margin: 0;
-  font-family: Arial, sans-serif;
+.feedback-logo--compact {
+    max-height: 40px;
 }
 
-/* Center the entire form container */
-.page-wrapper {
-  display: flex;
-  justify-content: center; /* Centers horizontally */
-  align-items: center;     /* Centers vertically */
-  min-height: 100vh;       /* Full screen height */
-  background-color: #f9f9f9;
+/* Main content */
+.feedback-main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
 }
 
-/* Form box styling */
 .feedback-container {
-  background: #fff;
-  padding: 30px 40px;
-  border-radius: 10px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.1);
-  width: 400px;
-  max-width: 90%;
+    width: 100%;
+    max-width: 480px;
+    background: var(--brand-shell-card, #fff);
+    border-radius: 16px;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.03),
+        0 16px 40px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
 }
 
-.feedback-container form {
-  display: flex;
-  flex-direction: column;
+.feedback-container::before {
+    content: '';
+    display: block;
+    height: 4px;
+    background: linear-gradient(
+        90deg,
+        var(--brand-button-bg, var(--brand-accent, #4caf50)),
+        var(--brand-primary, #ffd700)
+    );
 }
 
-.feedback-container input,
-.feedback-container textarea {
-  margin-bottom: 15px;
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  width: 100%;
+.feedback-header {
+    padding: 2rem 2rem 0.5rem;
+    text-align: center;
 }
 
-.feedback-container button {
-  background-color: #f7a600;
-  color: white;
-  border: none;
-  padding: 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+.feedback-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--brand-primary, #ffd700) 18%, #fff);
+    color: var(--brand-nav-link, var(--brand-blue, #1f4ea7));
+    font-size: 1.35rem;
 }
 
-.feedback-container button:hover {
-  background-color: #f7a600;
+.feedback-header h1 {
+    margin: 0 0 0.5rem;
+    font-family: var(--brand-font-family-heading, inherit);
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--brand-school-name-color, var(--brand-text-dark, #333));
+    line-height: 1.25;
+}
+
+.feedback-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--brand-shell-muted-text, #64748b);
+}
+
+/* Form */
+.feedback-form {
+    padding: 1.25rem 2rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.feedback-field label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--brand-text-dark, #333);
+}
+
+.feedback-field .optional {
+    font-weight: 400;
+    color: var(--brand-shell-muted-text, #64748b);
+}
+
+.feedback-field .required {
+    color: var(--brand-status-danger, #dc2626);
+}
+
+.feedback-field input,
+.feedback-field textarea {
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    border-radius: 10px;
+    font: inherit;
+    color: var(--brand-text-dark, #333);
+    background: var(--brand-page-bg, #fff);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feedback-field input::placeholder,
+.feedback-field textarea::placeholder {
+    color: #94a3b8;
+}
+
+.feedback-field input:focus,
+.feedback-field textarea:focus {
+    outline: none;
+    border-color: var(--brand-nav-link, var(--brand-blue, #1f4ea7));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-nav-link, #1f4ea7) 18%, transparent);
+}
+
+.feedback-field textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.feedback-error {
+    margin: 0.35rem 0 0;
+    font-size: 0.82rem;
+    color: var(--brand-status-danger, #dc2626);
+}
+
+.feedback-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    padding: 0.85rem 1.25rem;
+    border: none;
+    border-radius: 10px;
+    background: var(--brand-button-bg, var(--brand-accent, #4caf50));
+    color: var(--brand-button-text, #fff);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-button-bg, #4caf50) 35%, transparent);
+}
+
+.feedback-submit:hover {
+    background: var(--brand-button-hover-bg, var(--brand-green-dark, #2e7d32));
+    color: var(--brand-button-hover-text, #fff);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-button-bg, #4caf50) 40%, transparent);
+}
+
+.feedback-submit:active {
+    transform: translateY(0);
+}
+
+/* Success popup */
+.feedback-popup {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.9rem 1.25rem;
+    border-radius: 10px;
+    background: var(--brand-status-success, #16a34a);
+    color: var(--brand-status-success-text, #fff);
+    font-weight: 500;
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.feedback-popup.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.feedback-popup.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.feedback-popup i {
+    font-size: 1.15rem;
+}
+
+/* Responsive */
+@media (max-width: 540px) {
+    .feedback-topbar {
+        padding: 0.85rem 1rem;
+    }
+
+    .feedback-logo {
+        max-height: 34px;
+    }
+
+    .feedback-header,
+    .feedback-form {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+
+    .feedback-header h1 {
+        font-size: 1.35rem;
+    }
 }
