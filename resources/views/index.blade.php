@@ -3,82 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/x-icon" href="{{ asset('img/pantas-10.png') }}">
-    <title>PANTAS | Platform</title>
-    <link rel="stylesheet" href="{{ asset('style.css') }}">
+    <title>GGCAST - Governor Generoso College</title>
+    @if(!empty($brand['favicon_url']))
+        <link rel="icon" type="{{ $brand['favicon_mime'] ?? 'image/png' }}" href="{{ $brand['favicon_url'] }}">
+    @endif
+    @include('partials.branding-styles')
+    <link rel="stylesheet" href="{{ asset('css/home.css') }}">
 </head>
 <body>
-
     <header>
-        <div class="logo-container">
-            <img src="{{ asset('img/pantas-logo-landscape-10.png') }}" alt="PANTAS Logo" class="logo">
+        <div class="header-container">
+            <a class="logo-section" href="{{ route('home') }}" aria-label="GGCAST home">
+                <img src="{{ asset('images/ggcastlogo.png') }}" alt="GGCAST Logo" class="logo-icon">
+                <div class="logo-text"><h2>GGCAST</h2></div>
+            </a>
+            <nav aria-label="Primary navigation">
+                <a href="#about">ABOUT</a>
+                <a href="{{ route('landing') }}">OPAC</a>
+                <a href="{{ $brand['zendy_url'] ?? 'https://zendy.io' }}" target="_blank" rel="noopener noreferrer">ZENDY</a>
+                <a href="#contact">CONTACT US</a>
+                <a href="{{ route('rooms.book') }}">ROOM RESERVATIONS</a>
+                <a href="{{ route('feedback.create') }}">FEEDBACK</a>
+                <a href="{{ route('login') }}" class="login-btn">LOGIN</a>
+            </nav>
         </div>
-        <nav class="nav-links">
-            <ul>
-                <li><a href="#">ABOUT</a></li>
-                <li><a href="{{ route('landing') }}" >OPAC</a></li>
-                <li><a href="https://zendy.io/">ZENDY</a></li>
-                <li><a href="#">CONTACT US</a></li>
-                <li><a href="{{ url('/rooms/book') }}">ROOM RESERVATIONS</a></li>
-                <li><a href="{{ route('feedback.create') }}" class="feedback-link" >FEEDBACK</a></li>
-                <li><a href="{{ route('login') }}" class="login-button">LOGIN</a></li>
-            </ul>
-        </nav>
     </header>
 
-    <main class="hero">
-        <div class="hero-content">
-            <h1 class="fade-in">WELCOME TO PANTAS</h1>
-        </div>
+    <main>
+        <section class="hero" id="home" style="background-image: url('{{ asset('images/hero-banner.png') }}');"></section>
+
+        <section class="content-section" id="about">
+            <div class="content-container narrow">
+                <h2 class="section-title">About Our College</h2>
+                <p class="section-subtitle">A school community committed to knowledge, service, and progress.</p>
+                <article class="feature-card about-card">
+                    <h3>Why Choose GGCAST?</h3>
+                    <p>GGCAST provides students with a strong educational foundation through relevant academic programs, experienced faculty, and student-centered learning.</p>
+                    <p>We focus on developing not only academic competence but also leadership, discipline, creativity, and social responsibility.</p>
+                    <p>Our institution aims to prepare graduates who are ready for employment, lifelong learning, and meaningful service to society.</p>
+                    <h4>Quality Education</h4>
+                    <p>Driven by excellence, innovation, and community values.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="content-section alternate" id="mission-vision">
+            <div class="content-container">
+                <h2 class="section-title">Mission and Vision</h2>
+                <p class="section-subtitle">Guided by excellence, service, and values-driven education.</p>
+                <div class="two-column-grid">
+                    <article class="info-card">
+                        <h3>Our Vision</h3>
+                        <p>A higher learning institution equipped with competent human resources, state-of-the-art facilities, academic standards, and has disaster resiliency, essential to the development of globally competitive economically stable, socially involved, environmentally-friendly, and spiritually molded individuals for a highly progressive community.</p>
+                    </article>
+                    <article class="info-card">
+                        <h3>Our Mission</h3>
+                        <p>The college shall provide quality education to all by producing competent graduates and cultivating individuals with deep sense of values in life, vibrant leadership, proficient entrepreneurial skills, strong environmental advocacy, and multi-cultural sensitivity through excellent instruction, robust research, active community service and involvement.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="programs-section" id="programs">
+            <div class="programs-container">
+                <h2 class="section-title">Academic Programs</h2>
+                <p class="section-subtitle">Explore the courses designed to build your future career.</p>
+                <div class="programs-grid">
+                    <article class="program-item"><h3>Bachelor of Secondary Education</h3><p>Prepare future educators with strong foundations in teaching, subject mastery, and classroom leadership.</p></article>
+                    <article class="program-item"><h3>Bachelor of Elementary Education</h3><p>Train aspiring teachers to guide young learners through effective instruction, creativity, and care.</p></article>
+                    <article class="program-item"><h3>Bachelor of Public Administration</h3><p>Develop leadership, governance, and administrative skills for careers in public service and management.</p></article>
+                    <article class="program-item"><h3>Bachelor of Science in Office Administration</h3><p>Build competencies in office systems, business support, communication, and administrative operations.</p></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section" id="requirements">
+            <div class="content-container">
+                <h2 class="section-title">Enrollment Requirements</h2>
+                <p class="section-subtitle">Please prepare the following documents for enrollment.</p>
+                <div class="two-column-grid requirements-grid">
+                    <article class="info-card">
+                        <h3>For Freshmen</h3>
+                        <h4>Required Documents</h4>
+                        <ul>
+                            <li>Certificate of Transfer (Honorable Dismissal)</li>
+                            <li>Certified True Copy of Grades or Transcript of Record</li>
+                            <li>Barangay Clearance</li>
+                            <li>PSA Birth Certificate (original copy)</li>
+                            <li>Cedula (18 years old and above)</li>
+                            <li>2 pcs. each 1x1 and 2x2 ID with white background</li>
+                            <li>If married: PSA Marriage Certificate (original copy)</li>
+                            <li>Long brown envelope</li>
+                        </ul>
+                        <p class="note">Bring original and complete requirements to avoid delays in processing your enrollment.</p>
+                    </article>
+                    <article class="info-card">
+                        <h3>For Old Students</h3>
+                        <h4>Required Documents</h4>
+                        <ul>
+                            <li>Prospectus</li>
+                            <li>School ID</li>
+                            <li>Student Clearance</li>
+                        </ul>
+                        <p class="note">Old students are advised to bring all required documents for a smooth re-enrollment process.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section achievements-section" id="achievements">
+            <div class="content-container">
+                <h2 class="section-title">Our Achievements</h2>
+                <p class="section-subtitle">Growing with excellence and community trust.</p>
+                <div class="achievement-grid">
+                    <div><strong>0</strong><span>Enrolled Students</span></div>
+                    <div><strong>0</strong><span>Qualified Faculty</span></div>
+                    <div><strong>0</strong><span>Academic Programs</span></div>
+                    <div><strong>0</strong><span>Years of Service</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section contact-section" id="contact">
+            <div class="content-container narrow">
+                <h2 class="section-title">Contact Us</h2>
+                <p class="section-subtitle">We would love to hear from you.</p>
+                <article class="contact-card">
+                    <h3>School Information</h3>
+                    <dl>
+                        <div><dt>School Name</dt><dd>Governor Generoso College of Arts Sciences and Technology (GGCAST)</dd></div>
+                        <div><dt>Address</dt><dd>Purok 1, Barangay Poblacion, Governor Generoso, Philippines</dd></div>
+                        <div><dt>Email</dt><dd><a href="mailto:ggcast@ggcast.edu.ph">ggcast@ggcast.edu.ph</a></dd></div>
+                        <div><dt>Phone</dt><dd><a href="tel:+63878111727">(087) 811 1727</a></dd></div>
+                        <div><dt>Office Hours</dt><dd>Monday to Friday, 8:00 AM - 5:00 PM</dd></div>
+                    </dl>
+                </article>
+            </div>
+        </section>
     </main>
 
-    <section class="about-section fade-in-scroll">
-        <div class="container">
-            <img src="{{ asset('img/pantas-10.png') }}" alt="PANTAS Logo Large" class="about-logo">
-            
-            <h2 class="tagline">"Pinoy Automated Next-Generation Technology for Academic Services"</h2>
-            
-            <p class="description">
-                PANTAS (Affiliated by AREA51) is a smart digital library system designed to revolutionize how libraries operate. It bridges traditional physical resources with modern digital management using advanced RFID technology. As AREA 51’s first start-up venture, PANTAS aims to build the libraries of tomorrow – offering intelligent solutions that improve efficiency, enhance security, and simplify daily operations for librarians, educators, and institutions.
-            </p>
-            
-            <h3 class="footer-motto">“Your Partner in Building the Libraries of Tomorrow”</h3>
-        </div>
-    </section>
-
-<footer>
-        <div class="footer-container">
-            <div class="footer-col branding">
-                <img src="{{ asset('img/pantas-logo-landscape-10.png') }}" alt="Pantas Logo" class="footer-logo">
-                <img src="{{ asset('img/area-51-new-logo-2-copy-10.png') }}" alt="Area 51 Logo" class="footer-logo-sub">
-                <p class="copyright">Pantas &copy; 2025. All Rights Reserved.</p>
-            </div>
-
-            <div class="footer-col">
-                <h3>QUICK LINKS</h3>
-                <ul>
-                    <li><a href="{{ route('home') }}">HOME</a></li>
-                    <li><a href="#">ABOUT</a></li>
-                    <li><a href="contact us.html">CONTACT US</a></li>
-                    <li><a href="#">ROOM RESERVATIONS</a></li>
-                </ul>
-            </div>
-
-            <div class="footer-col">
-                <h3>GET IN TOUCH</h3>
-                <p>Zamoras Bldg, 2nd Floor, Purok 4, Glodo Subd,<br>
-                   San Francisco, Panabo City, Davao del Norte</p>
-                <p class="schedule">MONDAY - FRIDAY<br>9:00 AM - 5:00 PM</p>
-                <p><a href="mailto:inquiry@area51.ph">inquiry@area51.ph</a></p>
-                <p>0917 762 1021</p>
-            </div>
-        </div>
-    </footer>
-
-    
-
-
-
-    <script src="{{ asset('script.js') }}"></script>
+    <footer><p>&copy; GOVERNOR GENEROSO COLLEGE OF ARTS SCIENCES AND TECHNOLOGY (GGCAST).</p></footer>
+    <script src="{{ asset('js/home.js') }}"></script>
 </body>
 </html>

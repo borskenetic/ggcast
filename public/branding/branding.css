@@ -1,0 +1,147 @@
+/*
+ * GGCAST — Governor Generoso College branding
+ */
+@import url('../vendor/fontsource/poppins/latin-400.css');
+@import url('../vendor/fontsource/poppins/latin-600.css');
+@import url('../vendor/fontsource/poppins/latin-700.css');
+
+:root {
+  --brand-font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --brand-font-family-heading: var(--brand-font-family);
+  --brand-font-family-mono: ui-monospace, 'Cascadia Code', 'Segoe UI Mono', Consolas, monospace;
+
+  /* GGCAST palette — navy blue + gold */
+  --brand-primary: #fbbf24;
+  --brand-accent: #1e3a8a;
+  --brand-blue: #1e3a8a;
+  --brand-blue-dark: #163a82;
+  --brand-green-dark: #2c5282;
+  --brand-text-dark: #333333;
+  --brand-text-light: #ffffff;
+
+  --brand-sidebar-bg: var(--brand-accent);
+  --brand-sidebar-text: var(--brand-text-light);
+  --brand-sidebar-portal-text: var(--brand-text-light);
+  --brand-sidebar-role-text: var(--brand-text-light);
+  --brand-sidebar-highlight: var(--brand-primary);
+  --brand-sidebar-highlight-text: var(--brand-text-dark);
+  --brand-sidebar-active-bg: var(--brand-blue-dark);
+  --brand-sidebar-active-text: var(--brand-text-light);
+  --brand-sidebar-border: var(--brand-green-dark);
+
+  --brand-gate-sidebar-bg: var(--brand-primary);
+  --brand-gate-title-text: var(--brand-blue);
+  --brand-gate-footer-bg: var(--brand-primary);
+  --brand-gate-button-bg: var(--brand-primary);
+  --brand-gate-button-hover-bg: var(--brand-green-dark);
+  --brand-gate-highlight: var(--brand-primary);
+  --brand-gate-clock-text: var(--brand-blue);
+  --brand-gate-panel-text: var(--brand-text-light);
+  --brand-gate-modal-heading: var(--brand-primary);
+  --brand-gate-modal-button-bg: var(--brand-primary);
+  --brand-gate-modal-button-hover: var(--brand-accent);
+
+  --brand-auth-signin-bg: var(--brand-accent);
+  --brand-auth-signin-hover-bg: var(--brand-blue-dark);
+  --brand-auth-signin-text: var(--brand-text-light);
+
+  --brand-shell-background: #ffffff;
+  --brand-shell-card: #ffffff;
+  --brand-shell-muted: #f4f6f9;
+  --brand-shell-border: #e5e7eb;
+  --brand-shell-text: var(--brand-text-dark);
+  --brand-shell-muted-text: #64748b;
+  --brand-shell-action-text: var(--brand-text-dark);
+  --brand-shell-filter-label: var(--brand-blue);
+  --brand-shell-button-bg: var(--brand-accent);
+  --brand-shell-button-text: var(--brand-text-light);
+  --brand-shell-primary: var(--brand-shell-button-bg);
+  --brand-shell-secondary: #64748b;
+  --brand-shell-secondary-text: var(--brand-text-light);
+  --brand-shell-accent: var(--brand-primary);
+
+  --brand-status-available: #16a34a;
+  --brand-status-available-text: #ffffff;
+  --brand-status-borrowed: #dc2626;
+  --brand-status-borrowed-text: #ffffff;
+  --brand-status-success: #16a34a;
+  --brand-status-success-text: #ffffff;
+  --brand-status-danger: #dc2626;
+  --brand-status-danger-text: #ffffff;
+
+  --brand-page-bg: #ffffff;
+  --brand-school-name-color: var(--brand-blue);
+
+  --brand-nav-link: var(--brand-blue);
+  --brand-nav-link-active: var(--brand-text-light);
+  --brand-nav-hover-bg: var(--brand-text-light);
+  --brand-nav-hover-text: var(--brand-primary);
+
+  --brand-logout-bg: var(--brand-shell-button-bg);
+  --brand-logout-text: var(--brand-shell-button-text);
+
+  --brand-button-bg: var(--brand-accent);
+  --brand-button-text: var(--brand-text-light);
+  --brand-button-hover-bg: var(--brand-blue-dark);
+  --brand-button-hover-text: var(--brand-text-light);
+
+  --brand-danger-bg: var(--brand-blue);
+  --brand-danger-hover-bg: var(--brand-blue-dark);
+  --brand-danger-text: var(--brand-text-light);
+
+  --brand-success-bg: var(--brand-accent);
+  --brand-success-hover-bg: var(--brand-blue-dark);
+  --brand-success-text: var(--brand-text-light);
+
+  --brand-footer-bg: var(--brand-blue);
+
+  --brand-kiosk-gradient-from: var(--brand-blue);
+  --brand-kiosk-gradient-to: var(--brand-green-dark);
+
+  --primary-yellow: var(--brand-primary);
+  --secondary-green: var(--brand-accent);
+  --text-dark: var(--brand-text-dark);
+  --text-light: var(--brand-text-light);
+}
+
+:root {
+  --bs-primary: var(--brand-primary);
+  --bs-primary-rgb: 251, 191, 36;
+  --bs-success: var(--brand-accent);
+  --bs-success-rgb: 30, 58, 138;
+  --bs-link-color: var(--brand-accent);
+  --bs-link-hover-color: var(--brand-accent);
+}
+
+:root {
+  --sidebar: var(--brand-sidebar-bg);
+  --sidebar-foreground: var(--brand-sidebar-text);
+  --sidebar-primary: var(--brand-sidebar-highlight);
+  --sidebar-primary-foreground: var(--brand-sidebar-highlight-text);
+  --sidebar-accent: var(--brand-sidebar-active-bg);
+  --sidebar-accent-foreground: var(--brand-sidebar-active-text);
+  --sidebar-border: var(--brand-sidebar-border);
+  --sidebar-ring: var(--brand-sidebar-highlight);
+  --foreground: var(--brand-shell-text);
+  --card-foreground: var(--brand-shell-text);
+  --popover-foreground: var(--brand-shell-text);
+  --muted-foreground: var(--brand-shell-muted-text);
+  --primary: var(--brand-shell-button-bg);
+  --primary-foreground: var(--brand-shell-button-text);
+  --secondary: var(--brand-shell-secondary);
+  --secondary-foreground: var(--brand-shell-secondary-text);
+  --accent: var(--brand-shell-accent);
+  --accent-foreground: var(--brand-shell-text);
+  --background: var(--brand-shell-background);
+  --card: var(--brand-shell-card);
+  --border: var(--brand-shell-border);
+  --ring: var(--brand-shell-button-bg);
+  --status-available: var(--brand-status-available);
+  --status-available-foreground: var(--brand-status-available-text);
+  --status-borrowed: var(--brand-status-borrowed);
+  --status-borrowed-foreground: var(--brand-status-borrowed-text);
+  --status-success: var(--brand-status-success);
+  --status-success-foreground: var(--brand-status-success-text);
+  --status-danger: var(--brand-status-danger);
+  --status-danger-foreground: var(--brand-status-danger-text);
+}

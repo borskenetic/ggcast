@@ -34,8 +34,11 @@ desktop.ini
 /a/
 /img/
 
-# Legacy root images folder (use public/images/ for repo assets)
-/images/
+# Legacy root copies (integrated into public/)
+/assets/
+/css/style.css
+/js/script.js
+/ggcast home/
 
 # Migration archives (use database/migrations/*.php instead)
 /database/migrations/*.zip
@@ -61,6 +64,5 @@ desktop.ini
 /videos/*.mp4
 !/public/videos/.gitkeep
 
-# Per-school branding colors (copy branding.css.example → branding.css locally)
+# Per-school branding colors — committed for GGCAST deployment
 /branding/branding.css
-/public/branding/branding.css
