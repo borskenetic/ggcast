@@ -1,132 +1,321 @@
+/* Library registration — GGCAST branding */
 
-    body {
-        background: #f3f0ff;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        font-family: "Segoe UI", sans-serif;
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+body.register-page {
+    margin: 0;
+    width: 100%;
+    min-height: 100vh;
+    font-family: var(--brand-font-family, 'Poppins', ui-sans-serif, system-ui, sans-serif);
+    color: var(--brand-text-dark, #333);
+    background:
+        radial-gradient(circle at top right, color-mix(in srgb, var(--brand-primary, #fbbf24) 12%, transparent), transparent 42%),
+        linear-gradient(160deg, var(--brand-shell-muted, #f4f6f9) 0%, #eef2f7 100%);
+}
+
+.register-page-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
+}
+
+.register-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: var(--brand-page-bg, #fff);
+    border-bottom: 1px solid var(--brand-shell-border, #e5e7eb);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.register-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    background: var(--brand-page-bg, #fff);
+    color: var(--brand-nav-link, var(--brand-blue, #1e3a8a));
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.register-back-btn:hover {
+    background: color-mix(in srgb, var(--brand-primary, #fbbf24) 12%, #fff);
+    color: var(--brand-blue, #1e3a8a);
+    border-color: color-mix(in srgb, var(--brand-primary, #fbbf24) 45%, var(--brand-shell-border, #e5e7eb));
+    transform: translateX(-2px);
+}
+
+.register-topbar-logo {
+    max-height: 40px;
+    width: auto;
+    object-fit: contain;
+}
+
+.register-main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
+    width: 100%;
+}
+
+.register-card {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2rem 2rem 2.25rem;
+    background: var(--brand-shell-card, #fff);
+    border-radius: 16px;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.03),
+        0 16px 40px rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+.register-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(
+        90deg,
+        var(--brand-blue, #1e3a8a),
+        var(--brand-primary, #fbbf24)
+    );
+    pointer-events: none;
+}
+
+.register-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.register-logo {
+    max-width: 110px;
+    width: 100%;
+    height: auto;
+    margin-bottom: 0.85rem;
+    object-fit: contain;
+}
+
+.register-title {
+    margin: 0 0 0.35rem;
+    font-family: var(--brand-font-family-heading, inherit);
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--brand-school-name-color, var(--brand-blue, #1e3a8a));
+}
+
+.register-subtitle {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--brand-shell-muted-text, #64748b);
+}
+
+.register-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.register-tab {
+    min-width: 150px;
+    padding: 0.65rem 1.25rem;
+    border-radius: 10px;
+    border: 2px solid var(--brand-accent, #1e3a8a);
+    background: transparent;
+    color: var(--brand-accent, #1e3a8a);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.register-tab:hover {
+    background: color-mix(in srgb, var(--brand-accent, #1e3a8a) 8%, #fff);
+}
+
+.register-tab.is-active {
+    background: var(--brand-button-bg, var(--brand-accent, #1e3a8a));
+    border-color: var(--brand-button-bg, var(--brand-accent, #1e3a8a));
+    color: var(--brand-button-text, #fff);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-button-bg, #1e3a8a) 30%, transparent);
+}
+
+.register-section-title {
+    margin: 0 0 1rem;
+    padding-left: 0.75rem;
+    border-left: 4px solid var(--brand-primary, #fbbf24);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--brand-blue, #1e3a8a);
+}
+
+.register-section-title--sub {
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--brand-text-dark, #333);
+    border-left-color: var(--brand-blue, #1e3a8a);
+}
+
+.register-page .form-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--brand-text-dark, #333);
+    margin-bottom: 0.35rem;
+}
+
+.register-page .form-control,
+.register-page .form-select {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.95rem;
+    color: var(--brand-text-dark, #333);
+    background: var(--brand-page-bg, #fff);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.register-page .form-control::placeholder {
+    color: #94a3b8;
+}
+
+.register-page .form-control:focus,
+.register-page .form-select:focus {
+    outline: none;
+    border-color: var(--brand-nav-link, var(--brand-blue, #1e3a8a));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-nav-link, #1e3a8a) 18%, transparent);
+}
+
+.register-alert {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+}
+
+.register-alert--success {
+    background: color-mix(in srgb, var(--brand-status-success, #16a34a) 12%, #fff);
+    border: 1px solid color-mix(in srgb, var(--brand-status-success, #16a34a) 30%, transparent);
+    color: #166534;
+}
+
+.register-alert--danger {
+    background: color-mix(in srgb, var(--brand-status-danger, #dc2626) 10%, #fff);
+    border: 1px solid color-mix(in srgb, var(--brand-status-danger, #dc2626) 25%, transparent);
+    color: var(--brand-status-danger, #dc2626);
+}
+
+.register-alert ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.register-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1.5rem;
+    padding: 0.9rem 1.25rem;
+    border: none;
+    border-radius: 10px;
+    background: var(--brand-button-bg, var(--brand-accent, #1e3a8a));
+    color: var(--brand-button-text, #fff);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-button-bg, #1e3a8a) 35%, transparent);
+}
+
+.register-submit:hover {
+    background: var(--brand-button-hover-bg, var(--brand-blue-dark, #163a82));
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--brand-button-bg, #1e3a8a) 40%, transparent);
+}
+
+.register-clear-sig {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--brand-status-danger, #dc2626) 40%, #e5e7eb);
+    background: #fff;
+    color: var(--brand-status-danger, #dc2626);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.register-clear-sig:hover {
+    background: color-mix(in srgb, var(--brand-status-danger, #dc2626) 8%, #fff);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.register-page canvas {
+    touch-action: none;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: 150px;
+    border: 1px solid var(--brand-shell-border, #e5e7eb);
+    border-radius: 10px;
+    background-color: #fff;
+}
+
+@media (max-width: 576px) {
+    .register-topbar {
+        padding: 0.85rem 1rem;
     }
 
-    .reg-card {
-        background: #ffffff;
-        border-radius: 18px;
-        padding: 40px 45px;
-        box-shadow: 0 8px 30px rgba(90, 13, 171, 0.12);
-        width: 100%;
-        max-width: 950px;
-        border-top: 6px solid #5a0dab;
+    .register-topbar-logo {
+        max-height: 32px;
     }
 
-    h2.title {
-        font-weight: 800;
-        text-align: center;
-        color: #5a0dab;
-        margin-bottom: 30px;
-        letter-spacing: .5px;
-        font-size: 2rem;
+    .register-card {
+        padding: 1.5rem 1.15rem 1.75rem;
     }
 
-    h5.section-title {
-        margin-top: 35px;
-        font-weight: 700;
-        color: #333;
-        border-left: 5px solid #5a0dab;
-        padding-left: 12px;
-        font-size: 1.1rem;
+    .register-title {
+        font-size: 1.35rem;
     }
 
-    label {
-        font-weight: 600;
-        color: #4a4a4a;
-        font-size: 0.95rem;
+    .register-tab {
+        flex: 1 1 auto;
+        min-width: 0;
     }
-
-    .form-control,
-    .form-select {
-        border-radius: 10px;
-        padding: 12px 13px;
-        border: 2px solid #e6e0f5;
-        transition: all .2s;
-        font-size: 0.95rem;
-    }
-
-    .form-control:focus,
-    .form-select:focus {
-        border-color: #5a0dab;
-        box-shadow: 0 0 0 3px rgba(90, 13, 171, .15);
-    }
-
-    .btn-primary {
-        background: #5a0dab;
-        border: none;
-        padding: 13px 30px;
-        font-size: 17px;
-        border-radius: 12px;
-        font-weight: 600;
-        transition: all .2s;
-        box-shadow: 0 4px 12px rgba(90, 13, 171, 0.25);
-    }
-
-    .btn-primary:hover {
-        background: #440a89;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 18px rgba(90, 13, 171, 0.28);
-    }
-
-    /* ============================
-       MOBILE RESPONSIVE IMPROVEMENTS
-       ============================ */
-    @media (max-width: 768px) {
-
-        body {
-            padding: 10px;
-        }
-
-        .reg-card {
-            padding: 25px 20px;
-            border-radius: 14px;
-        }
-
-        h2.title {
-            font-size: 1.6rem;
-            margin-bottom: 20px;
-        }
-
-        h5.section-title {
-            font-size: 1rem;
-            margin-top: 25px;
-        }
-
-        .row > div {
-            margin-bottom: 10px;
-        }
-
-        .btn-primary {
-            width: 100%;
-            padding: 14px 0;
-            font-size: 1rem;
-        }
-    }
-
-    @media (max-width: 480px) {
-        h2.title {
-            font-size: 1.4rem;
-        }
-
-        .reg-card {
-            padding: 20px 15px;
-        }
-
-        label {
-            font-size: 0.9rem;
-        }
-
-        .form-control,
-        .form-select {
-            padding: 10px 12px;
-            font-size: 0.9rem;
-        }
-    }
-
+}

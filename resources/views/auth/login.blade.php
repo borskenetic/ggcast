@@ -39,7 +39,7 @@
             </div>
 
             <h1 class="login-title">Welcome! Let's Begin</h1>
-            <p class="login-subtitle">Log in to continue to {{ $brand['library_name'] ?? 'the library portal' }}</p>
+            <p class="login-subtitle">Log in to continue</p>
 
             <form method="POST" action="{{ route('login') }}">
                 @csrf
