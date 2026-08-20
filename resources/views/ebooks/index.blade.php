@@ -151,18 +151,23 @@
                                         <td>{{ $ebook->program->program_name ?? '—' }}</td>
                                         <td>{{ $ebook->course->course_name ?? '—' }}</td>
                                         <td class="text-end text-nowrap">
-                                            @if($ebook->link)
-                                                <a href="{{ $ebook->link }}" target="_blank" rel="noopener noreferrer"
-                                                   class="ebooks-btn ebooks-btn--link ebooks-btn--sm">Open</a>
-                                            @endif
-                                            <a href="{{ route('ebooks.edit', $ebook->id) }}"
-                                               class="ebooks-btn ebooks-btn--outline ebooks-btn--sm">Edit</a>
-                                            <form action="{{ route('ebooks.destroy', $ebook->id) }}" method="POST" class="d-inline"
-                                                  onsubmit="return confirm('Delete this e-resource?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="ebooks-btn ebooks-btn--danger ebooks-btn--sm">Delete</button>
-                                            </form>
+                                            <div class="dropdown1">
+                                                <button type="button" class="dropdown1-button" aria-haspopup="true" aria-expanded="false">
+                                                    Actions
+                                                </button>
+                                                <div class="dropdown1-content">
+                                                    @if($ebook->link)
+                                                        <a href="{{ $ebook->link }}" target="_blank" rel="noopener noreferrer" class="dropdown-item1">Open</a>
+                                                    @endif
+                                                    <a href="{{ route('ebooks.edit', $ebook->id) }}" class="dropdown-item2">Edit</a>
+                                                    <form action="{{ route('ebooks.destroy', $ebook->id) }}" method="POST"
+                                                          onsubmit="return confirm('Delete this e-resource?');">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="dropdown-item3">Delete</button>
+                                                    </form>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach

@@ -275,6 +275,17 @@
     color: #64748b;
 }
 
+.ebooks-card--flush-table .table-responsive {
+    overflow: visible !important;
+}
+
+.ebooks-card--flush-table .table thead th:last-child,
+.ebooks-card--flush-table .table tbody td:last-child {
+    width: 1%;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
 .ebooks-tag {
     display: inline-block;
     padding: 0.2rem 0.5rem;
