@@ -394,16 +394,6 @@ function runCheckoutRequest(studentId, booksToCheckout, loanTerms) {
                     sendReceiptToPrintAgent();
                 }
 
-                if (
-                    !data.receipt_printed
-                    && !window.RECEIPT_PRINT_AGENT_URL
-                    && !/Android/i.test(navigator.userAgent || '')
-                    && typeof window.printReceiptBulk === 'function'
-                    && window.selectedBooks.length > 0
-                ) {
-                    window.printReceiptBulk();
-                }
-
                 showToast('Checkout successful!', 'success');
 
                 if (window.opacDetailPayload && window.selectedBooks.length === 1) {
