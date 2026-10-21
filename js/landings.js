@@ -462,55 +462,91 @@ function connectQZ() {
     return qz.websocket.connect();
 }
 
+function preferredReceiptPrinters() {
+    const configured = String(window.RECEIPT_PRINTER_NAME || '').trim();
+    return [configured, 'POS-80', 'POS-80C', 'POS80', 'GLPrint'].filter(Boolean)
+        .filter((name, index, list) => list.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index);
+}
+
+function matchReceiptPrinter(printers) {
+    const list = (Array.isArray(printers) ? printers : [printers]).map(String);
+    const preferred = preferredReceiptPrinters();
+
+    for (const name of preferred) {
+        const exact = list.find((printer) => printer.toLowerCase() === name.toLowerCase());
+        if (exact) return exact;
+    }
+
+    for (const name of preferred) {
+        const needle = name.toLowerCase().replace(/\s+/g, '');
+        const partial = list.find((printer) => printer.toLowerCase().replace(/\s+/g, '').includes(needle));
+        if (partial) return partial;
+    }
+
+    throw new Error(
+        'Receipt printer not found. Looking for "' + (preferred[0] || 'POS-80') +
+        '". Available printers: ' + (list.join(', ') || '(none)')
+    );
+}
+
+function resolveReceiptPrinter() {
+    return qz.printers.find().then(matchReceiptPrinter);
+}
+
 window.printReceiptBulk = function printReceiptBulk() {
     if (!window.selectedStudent || !window.selectedBooks || window.selectedBooks.length === 0) {
         alert('No checkout data available to print.');
         return;
     }
 
-    connectQZ().then(() => {
-        const config = qz.configs.create('GLPrint');
+    connectQZ()
+        .then(resolveReceiptPrinter)
+        .then((printerName) => {
+            const config = qz.configs.create(printerName);
+            const libraryName = window.LIBRARY_NAME || 'Library';
 
-        const now = new Date();
-        const formattedDate = now.toLocaleDateString();
-        const formattedTime = now.toLocaleTimeString();
+            const now = new Date();
+            const formattedDate = now.toLocaleDateString();
+            const formattedTime = now.toLocaleTimeString();
 
-        let lines = '';
-        window.selectedBooks.forEach((book) => {
-            lines += `${book.title}\n`;
-            lines += `${book.author || ''}\n`;
-            lines += `Barcode: ${book.barcode || ''}\n`;
-            lines += `Due Date: ${book.due_date || ''}\n`;
-            lines += '--------------------------------\n';
+            let lines = '';
+            window.selectedBooks.forEach((book) => {
+                lines += `${book.title}\n`;
+                lines += `${book.author || ''}\n`;
+                lines += `Barcode: ${book.barcode || ''}\n`;
+                lines += `Due Date: ${book.due_date || ''}\n`;
+                lines += '--------------------------------\n';
+            });
+
+            const data = [
+                '\x1B\x40',
+                '\x1B\x61\x00',
+                `${libraryName}\n`,
+                `${formattedDate} ${formattedTime}\n`,
+                '\n',
+                '\n',
+                `${window.selectedStudent.name.toUpperCase()}\n`,
+                `${window.selectedStudent.id_number}\n`,
+                '\n',
+                "Today's Checkouts\n",
+                '--------------------------------\n',
+                lines,
+                'Served By: ______________________\n',
+                '\n\n\n',
+                '\x1D\x56\x01'
+            ];
+
+            return qz.print(config, [{
+                type: 'raw',
+                format: 'command',
+                data: data.join('')
+            }]);
+        })
+        .catch((err) => {
+            console.error('QZ Tray Error:', err);
+            const message = err && err.message ? err.message : String(err);
+            alert('Printing failed. ' + message + '\n\nMake sure QZ Tray is running and the printer is named POS-80.');
         });
-
-        const data = [
-            '\x1B\x40',
-            '\x1B\x61\x00',
-            'Kundo E. Pahm Learning Resource Center\n',
-            `${formattedDate} ${formattedTime}\n`,
-            '\n',
-            '\n',
-            `${window.selectedStudent.name.toUpperCase()}\n`,
-            `${window.selectedStudent.id_number}\n`,
-            '\n',
-            "Today's Checkouts\n",
-            '--------------------------------\n',
-            lines,
-            'Served By: ______________________\n',
-            '\n\n\n',
-            '\x1D\x56\x01'
-        ];
-
-        return qz.print(config, [{
-            type: 'raw',
-            format: 'command',
-            data: data.join('')
-        }]);
-    }).catch((err) => {
-        console.error('QZ Tray Error:', err);
-        alert('Printing failed. Check QZ Tray.');
-    });
 };
 
 /* =========================================

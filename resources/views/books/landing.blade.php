@@ -21,7 +21,7 @@
             window.location.replace(dest);
         })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/qz-tray/qz-tray.js"></script>
+    <script src="{{ asset('vendor/qz-tray/qz-tray.js') }}"></script>
 </head>
 
 <body class="opac-body">
@@ -507,6 +507,8 @@
     <script>
         window.CHECKOUT_URL = "{{ route('checkout.process') }}";
         window.CSRF_TOKEN = "{{ csrf_token() }}";
+        window.RECEIPT_PRINTER_NAME = @json(config('branding.receipt_printer', 'POS-80'));
+        window.LIBRARY_NAME = @json($brand['library_name'] ?? config('branding.library_name', 'Library'));
         window.OPAC_BOOK_DETAIL_BASE = @json(url('/opac/api/book').'/');
         window.HYBRID_API_BASE = @json(url('/api/hybrid'));
         window.HYBRID_CSRF = @json(csrf_token());

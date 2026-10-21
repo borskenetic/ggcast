@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="{{ asset('css/books/index.css') }}">
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('vendor/qz-tray/qz-tray.js') }}"></script>
 </head>
 
 <body>
@@ -170,6 +171,8 @@
 <script>
     window.CHECKOUT_URL = "{{ route('checkout.process') }}";
     window.CSRF_TOKEN = "{{ csrf_token() }}";
+    window.RECEIPT_PRINTER_NAME = @json(config('branding.receipt_printer', 'POS-80'));
+    window.LIBRARY_NAME = @json($brand['library_name'] ?? config('branding.library_name', 'Library'));
     window.LOAN_DEFAULT_DAYS = @json((int) (optional(\App\Models\FineSetting::latest('created_at')->first())->loan_duration_days ?? 7));
 </script>
 <script src="{{ asset('js/loan-terms.js') }}"></script>
