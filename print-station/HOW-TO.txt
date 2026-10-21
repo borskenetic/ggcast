@@ -34,11 +34,15 @@ IF IT STOPS / NO SLIP PRINTS
    If the window is gone, double-click the Desktop icon
    "GGCAST Receipt Printer".
 2. Confirm the POS-80 is on, has paper, and the USB cable is in.
-3. Confirm this PC is online (open a website).
+3. Confirm this PC is online: open Chrome and visit
+   https://ggcast.pantas.org
    Ethernet and Wi-Fi are both fine.
-4. Run test-printer.bat. If that fails, the Windows printer share
+4. If the window says "Connection refused" to 46.17.172.104,
+   copy this updated ggcast-new folder onto that PC, then start
+   GGCAST Receipt Printer again. Also run diagnose-network.bat.
+5. Run test-printer.bat. If that fails, the Windows printer share
    is the problem, not the website.
-5. If the green window says "Token rejected", the secret in .env
+6. If the green window says "Token rejected", the secret in .env
    does not match the live website. Call IT.
 
 

@@ -4,29 +4,33 @@ cd /d "%~dp0"
 
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 set "DESKTOP=%USERPROFILE%\Desktop"
-set "TARGET=%~dp0start-receipt-printer.bat"
 
-echo Creating Startup shortcut...
-powershell -NoProfile -Command ^
-  "$s = (New-Object -ComObject WScript.Shell).CreateShortcut('%STARTUP%\GGCAST Receipt Printer.lnk'); ^
-   $s.TargetPath = '%TARGET%'; ^
-   $s.WorkingDirectory = '%~dp0..'; ^
-   $s.WindowStyle = 1; ^
-   $s.Description = 'GGCAST self-checkout receipt printer'; ^
-   $s.Save()"
+if not exist "start-receipt-printer.bat" (
+    echo Cannot find start-receipt-printer.bat
+    echo Keep this file in the print-station folder.
+    pause
+    exit /b 1
+)
 
-echo Creating Desktop shortcut...
-powershell -NoProfile -Command ^
-  "$s = (New-Object -ComObject WScript.Shell).CreateShortcut('%DESKTOP%\GGCAST Receipt Printer.lnk'); ^
-   $s.TargetPath = '%TARGET%'; ^
-   $s.WorkingDirectory = '%~dp0..'; ^
-   $s.WindowStyle = 1; ^
-   $s.Description = 'GGCAST self-checkout receipt printer'; ^
-   $s.Save()"
+echo Copying to Startup folder...
+copy /Y "start-receipt-printer.bat" "%STARTUP%\GGCAST Receipt Printer.bat"
+if errorlevel 1 (
+    echo Failed to copy to Startup.
+    pause
+    exit /b 1
+)
+
+echo Copying to Desktop...
+copy /Y "start-receipt-printer.bat" "%DESKTOP%\GGCAST Receipt Printer.bat"
+if errorlevel 1 (
+    echo Failed to copy to Desktop.
+    pause
+    exit /b 1
+)
 
 echo.
 echo Done.
 echo - It will start when this Windows user logs in.
-echo - A "GGCAST Receipt Printer" icon is on the Desktop if you need to start it by hand.
+echo - Use the Desktop icon "GGCAST Receipt Printer" to start it by hand.
 echo.
 pause

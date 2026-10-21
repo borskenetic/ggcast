@@ -4,7 +4,10 @@ namespace App\Console\Commands;
 
 use App\Services\ReceiptPrinterService;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Throwable;
 
 class WatchReceiptPrinterCommand extends Command
 {
@@ -13,6 +16,8 @@ class WatchReceiptPrinterCommand extends Command
                             {--interval=2 : Seconds between checks}';
 
     protected $description = 'On the laptop with the USB printer: pull checkout receipts from the live OPAC and print them';
+
+    private ?array $workingAttempt = null;
 
     public function handle(ReceiptPrinterService $printer): int
     {
@@ -23,9 +28,13 @@ class WatchReceiptPrinterCommand extends Command
         }
 
         $base = rtrim((string) ($this->option('url') ?: config('printing.poll_url') ?: config('app.url')), '/');
-        if ($base === '' || str_contains($base, 'localhost') || str_contains($base, '127.0.0.1')) {
+        if ($base === '' || str_contains($base, 'localhost') || str_contains($base, '127.0.0.1') || str_contains($base, '46.17.172.104')) {
             $base = 'https://ggcast.pantas.org';
         }
+        if (! str_starts_with($base, 'http')) {
+            $base = 'https://'.$base;
+        }
+
         $token = (string) config('printing.agent_token', '');
         $interval = max(1, (int) $this->option('interval'));
 
@@ -49,11 +58,10 @@ class WatchReceiptPrinterCommand extends Command
         $this->newLine();
 
         $lastHeartbeat = 0;
-        $jobsUrl = $base.'/api/receipt-jobs/next';
 
         while (true) {
             try {
-                $response = $this->liveHttp($token)->get($jobsUrl);
+                $response = $this->request($token, 'get', $base.'/api/receipt-jobs/next');
 
                 if ($response->status() === 403) {
                     $this->error('Token rejected by '.$base.'. Check RECEIPT_PRINT_AGENT_TOKEN matches the live site.');
@@ -72,31 +80,94 @@ class WatchReceiptPrinterCommand extends Command
                     );
 
                     if ($ok) {
-                        $this->liveHttp($token)->post($base.'/api/receipt-jobs/'.$id.'/printed');
+                        $this->request($token, 'post', $base.'/api/receipt-jobs/'.$id.'/printed');
                         $this->info(now()->format('H:i:s').' Printed job #'.$id);
                     } else {
-                        $this->liveHttp($token)->post($base.'/api/receipt-jobs/'.$id.'/release');
+                        $this->request($token, 'post', $base.'/api/receipt-jobs/'.$id.'/release');
                         $this->warn(now()->format('H:i:s').' Print failed for job #'.$id.'. Will retry.');
                     }
                 } elseif (time() - $lastHeartbeat >= 30) {
                     $this->line(now()->format('H:i:s').' Waiting for checkouts…');
                     $lastHeartbeat = time();
                 }
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
+                $this->workingAttempt = null;
                 $this->warn(now()->format('H:i:s').' Network hiccup: '.$e->getMessage());
-                $this->warn('Still trying '.$jobsUrl.' (IPv4). Check this PC is online.');
+                $this->warn('Cannot reach '.$base.' yet. The tablet website can still work; this PC needs a path to the internet.');
             }
 
             sleep($interval);
         }
     }
 
-    private function liveHttp(string $token): \Illuminate\Http\Client\PendingRequest
+    private function request(string $token, string $method, string $httpsUrl): Response
+    {
+        $attempts = $this->workingAttempt ? [$this->workingAttempt] : $this->connectionAttempts($httpsUrl);
+        $last = null;
+
+        foreach ($attempts as $attempt) {
+            try {
+                $pending = $this->client($token, $attempt['options']);
+                $response = $method === 'post'
+                    ? $pending->post($attempt['url'])
+                    : $pending->get($attempt['url']);
+
+                $this->workingAttempt = $attempt;
+
+                return $response;
+            } catch (Throwable $e) {
+                $last = $e;
+            }
+        }
+
+        throw $last ?? new \RuntimeException('Could not reach the live site.');
+    }
+
+    /**
+     * @return list<array{url: string, options: array<string, mixed>}>
+     */
+    private function connectionAttempts(string $httpsUrl): array
+    {
+        $httpUrl = (string) preg_replace('#^https:#i', 'http:', $httpsUrl);
+        $host = (string) parse_url($httpsUrl, PHP_URL_HOST);
+        $ipv4 = $host !== '' ? gethostbyname($host) : $host;
+
+        $attempts = [
+            ['url' => $httpsUrl, 'options' => []],
+        ];
+
+        if ($ipv4 !== '' && $ipv4 !== $host && filter_var($ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $attempts[] = [
+                'url' => $httpsUrl,
+                'options' => [
+                    'curl' => [
+                        CURLOPT_RESOLVE => [
+                            $host.':443:'.$ipv4,
+                            $host.':80:'.$ipv4,
+                        ],
+                        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+                    ],
+                ],
+            ];
+        }
+
+        if ($httpUrl !== $httpsUrl) {
+            $attempts[] = ['url' => $httpUrl, 'options' => []];
+        }
+
+        return $attempts;
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    private function client(string $token, array $options): PendingRequest
     {
         return Http::timeout(15)
-            ->connectTimeout(10)
-            ->withOptions(['force_ip_resolve' => 'v4'])
+            ->connectTimeout(8)
+            ->withOptions($options)
             ->withHeaders(['X-Receipt-Token' => $token])
-            ->acceptJson();
+            ->acceptJson()
+            ->withUserAgent('GGCAST-ReceiptPrinter/1.0');
     }
 }
