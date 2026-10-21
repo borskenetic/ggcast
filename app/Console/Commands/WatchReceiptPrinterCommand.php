@@ -23,6 +23,9 @@ class WatchReceiptPrinterCommand extends Command
         }
 
         $base = rtrim((string) ($this->option('url') ?: config('printing.poll_url') ?: config('app.url')), '/');
+        if ($base === '' || str_contains($base, 'localhost') || str_contains($base, '127.0.0.1')) {
+            $base = 'https://ggcast.pantas.org';
+        }
         $token = (string) config('printing.agent_token', '');
         $interval = max(1, (int) $this->option('interval'));
 
@@ -32,17 +35,25 @@ class WatchReceiptPrinterCommand extends Command
             return self::FAILURE;
         }
 
-        $this->info('Watching '.$base.' for checkout receipts.');
-        $this->info('Printing to '.$printer->describeTarget());
-        $this->line('Keep this window open. Check out a book on the tablet, then a slip should print here.');
         $this->newLine();
+        $this->info('========================================');
+        $this->info('  GGCAST Receipt Printer is RUNNING');
+        $this->info('========================================');
+        $this->line('Website : '.$base);
+        $this->line('Printer : '.$printer->describeTarget());
+        $this->line('Network : Wi-Fi or Ethernet — both work.');
+        $this->newLine();
+        $this->line('Keep this window open.');
+        $this->line('When someone checks out on the tablet, a slip prints here.');
+        $this->line('Do not close this window. Minimize it if you need the screen.');
+        $this->newLine();
+
+        $lastHeartbeat = 0;
+        $jobsUrl = $base.'/api/receipt-jobs/next';
 
         while (true) {
             try {
-                $response = Http::timeout(8)
-                    ->withHeaders(['X-Receipt-Token' => $token])
-                    ->acceptJson()
-                    ->get($base.'/api/receipt-jobs/next');
+                $response = $this->liveHttp($token)->get($jobsUrl);
 
                 if ($response->status() === 403) {
                     $this->error('Token rejected by '.$base.'. Check RECEIPT_PRINT_AGENT_TOKEN matches the live site.');
@@ -61,24 +72,31 @@ class WatchReceiptPrinterCommand extends Command
                     );
 
                     if ($ok) {
-                        Http::timeout(8)
-                            ->withHeaders(['X-Receipt-Token' => $token])
-                            ->acceptJson()
-                            ->post($base.'/api/receipt-jobs/'.$id.'/printed');
-                        $this->info('Printed job #'.$id);
+                        $this->liveHttp($token)->post($base.'/api/receipt-jobs/'.$id.'/printed');
+                        $this->info(now()->format('H:i:s').' Printed job #'.$id);
                     } else {
-                        Http::timeout(8)
-                            ->withHeaders(['X-Receipt-Token' => $token])
-                            ->acceptJson()
-                            ->post($base.'/api/receipt-jobs/'.$id.'/release');
-                        $this->warn('Print failed for job #'.$id.'. Will retry.');
+                        $this->liveHttp($token)->post($base.'/api/receipt-jobs/'.$id.'/release');
+                        $this->warn(now()->format('H:i:s').' Print failed for job #'.$id.'. Will retry.');
                     }
+                } elseif (time() - $lastHeartbeat >= 30) {
+                    $this->line(now()->format('H:i:s').' Waiting for checkouts…');
+                    $lastHeartbeat = time();
                 }
             } catch (\Throwable $e) {
-                $this->warn('Poll failed: '.$e->getMessage());
+                $this->warn(now()->format('H:i:s').' Network hiccup: '.$e->getMessage());
+                $this->warn('Still trying '.$jobsUrl.' (IPv4). Check this PC is online.');
             }
 
             sleep($interval);
         }
+    }
+
+    private function liveHttp(string $token): \Illuminate\Http\Client\PendingRequest
+    {
+        return Http::timeout(15)
+            ->connectTimeout(10)
+            ->withOptions(['force_ip_resolve' => 'v4'])
+            ->withHeaders(['X-Receipt-Token' => $token])
+            ->acceptJson();
     }
 }

@@ -1,0 +1,56 @@
+GGCAST RECEIPT PRINTER
+======================
+
+This computer talks to ggcast.pantas.org over the internet and prints
+self-checkout slips on the USB POS-80. Ethernet or Wi-Fi both work.
+The printer itself stays plugged into USB on this PC.
+
+
+FIRST-TIME SETUP (once)
+-----------------------
+1. Plug the POS-80 into a USB port.
+2. In Windows: Settings → Bluetooth & devices → Printers
+   → POS-80 → Printer properties → Sharing
+   → check "Share this printer"
+   → share name must be: POS-80
+3. Double-click:  test-printer.bat
+   A test slip should come out. If not, check the share name and paper.
+4. Double-click:  install-autostart.bat
+   This adds it to Windows startup and puts an icon on the Desktop.
+
+
+EVERY DAY
+---------
+After Windows logs in, a green window titled
+"GGCAST Receipt Printer is RUNNING" should appear.
+
+Leave that window open. You may minimize it.
+When a student checks out on the tablet, a slip prints here.
+
+
+IF IT STOPS / NO SLIP PRINTS
+----------------------------
+1. Look at the taskbar for "GGCAST Receipt Printer".
+   If the window is gone, double-click the Desktop icon
+   "GGCAST Receipt Printer".
+2. Confirm the POS-80 is on, has paper, and the USB cable is in.
+3. Confirm this PC is online (open a website).
+   Ethernet and Wi-Fi are both fine.
+4. Run test-printer.bat. If that fails, the Windows printer share
+   is the problem, not the website.
+5. If the green window says "Token rejected", the secret in .env
+   does not match the live website. Call IT.
+
+
+TO TURN PRINTING OFF
+--------------------
+Close the green "GGCAST Receipt Printer" window.
+
+To stop it from starting at login, run uninstall-autostart.bat.
+
+
+NOTES
+-----
+The Android tablet only uses the website (ggcast.pantas.org/opac).
+It does not talk to this PC. This PC pulls jobs from the website
+every couple of seconds, so printing still feels real-time.
