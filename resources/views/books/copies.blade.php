@@ -171,6 +171,8 @@
     window.CHECKOUT_URL = "{{ route('checkout.process') }}";
     window.CSRF_TOKEN = "{{ csrf_token() }}";
     window.RECEIPT_PRINTER_NAME = @json(config('branding.receipt_printer', 'POS-80'));
+    window.RECEIPT_PRINT_AGENT_URL = @json(config('printing.agent_url', ''));
+    window.RECEIPT_PRINT_AGENT_TOKEN = @json(config('printing.agent_token', ''));
     window.LIBRARY_NAME = @json($brand['library_name'] ?? config('branding.library_name', 'Library'));
     window.LOAN_DEFAULT_DAYS = @json((int) (optional(\App\Models\FineSetting::latest('created_at')->first())->loan_duration_days ?? 7));
 </script>

@@ -390,7 +390,17 @@ function runCheckoutRequest(studentId, booksToCheckout, loanTerms) {
                 closeStudentModal();
                 closeCartModal();
 
-                if (typeof window.printReceiptBulk === 'function' && window.selectedBooks.length > 0) {
+                if (window.selectedBooks.length > 0) {
+                    sendReceiptToPrintAgent();
+                }
+
+                if (
+                    !data.receipt_printed
+                    && !window.RECEIPT_PRINT_AGENT_URL
+                    && !/Android/i.test(navigator.userAgent || '')
+                    && typeof window.printReceiptBulk === 'function'
+                    && window.selectedBooks.length > 0
+                ) {
                     window.printReceiptBulk();
                 }
 
@@ -438,6 +448,29 @@ function confirmCheckout() {
         : Promise.resolve({});
 
     proceed.then((loanTerms) => runCheckoutRequest(studentId, booksToCheckout, loanTerms));
+}
+
+function sendReceiptToPrintAgent() {
+    const url = String(window.RECEIPT_PRINT_AGENT_URL || '').trim();
+    if (!url || !window.selectedStudent || !window.selectedBooks || window.selectedBooks.length === 0) {
+        return;
+    }
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (window.RECEIPT_PRINT_AGENT_TOKEN) {
+        headers['X-Receipt-Token'] = window.RECEIPT_PRINT_AGENT_TOKEN;
+    }
+
+    fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            student: window.selectedStudent,
+            books: window.selectedBooks
+        })
+    }).catch((err) => {
+        console.error('Print agent error:', err);
+    });
 }
 
 /* =========================================

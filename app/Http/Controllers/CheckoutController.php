@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use App\Models\BookLog;
 use App\Models\FineSetting;
+use App\Models\ReceiptPrintJob;
 use App\Models\Setting;
 use App\Models\Student;
+use App\Services\ReceiptPrinterService;
 use App\Support\LoanDueDate;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -168,16 +170,19 @@ class CheckoutController extends Controller
                 ]);
             }
 
+            $studentPayload = [
+                'name' => $patronLegacyName,
+                'id_number' => $student->id_number,
+                'course' => $student->course,
+            ];
+
             return response()->json([
                 'success' => true,
-                'student' => [
-                    'name' => $patronLegacyName,
-                    'id_number' => $student->id_number,
-                    'course' => $student->course,
-                ],
+                'student' => $studentPayload,
                 'books' => $processedBooks,
                 'book' => count($processedBooks) === 1 ? $processedBooks[0] : null,
                 'due_date' => $processedBooks[count($processedBooks) - 1]['due_date'] ?? null,
+                'receipt_printed' => $this->printCheckoutReceipt($studentPayload, $processedBooks),
             ]);
         } catch (\Exception $e) {
             Log::error('Checkout Exception: '.$e->getMessage(), [
@@ -309,13 +314,41 @@ class CheckoutController extends Controller
             ];
         }
 
+        $studentPayload = [
+            'name' => $patronLegacyName,
+            'id_number' => $student->id_number,
+        ];
+
         return response()->json([
             'success' => true,
-            'student' => [
-                'name' => $patronLegacyName,
-                'id_number' => $student->id_number,
-            ],
+            'student' => $studentPayload,
             'books' => $results,
+            'receipt_printed' => $this->printCheckoutReceipt($studentPayload, $results),
         ]);
+    }
+
+    /**
+     * @param  array{name?: string, id_number?: string}  $student
+     * @param  list<array{title?: string, author?: string, barcode?: string, due_date?: string}>  $books
+     */
+    private function printCheckoutReceipt(array $student, array $books): bool
+    {
+        $printed = false;
+
+        try {
+            $printed = app(ReceiptPrinterService::class)->printCheckout($student, $books);
+        } catch (\Throwable $e) {
+            Log::warning('Checkout receipt print failed: '.$e->getMessage());
+        }
+
+        ReceiptPrintJob::create([
+            'payload' => [
+                'student' => $student,
+                'books' => $books,
+            ],
+            'printed_at' => $printed ? now() : null,
+        ]);
+
+        return $printed;
     }
 }

@@ -1,12 +1,17 @@
 <?php
 
 use App\Http\Controllers\Api\HybridSyncController;
+use App\Http\Controllers\Api\ReceiptPrintJobController;
 use App\Http\Middleware\AuthenticateHybridDevice;
 use Illuminate\Support\Facades\Route;
 
 /*
 | Hybrid offline/online sync APIs (device token via Bearer / X-Hybrid-Token)
 */
+
+Route::get('/receipt-jobs/next', [ReceiptPrintJobController::class, 'next']);
+Route::post('/receipt-jobs/{job}/printed', [ReceiptPrintJobController::class, 'printed']);
+Route::post('/receipt-jobs/{job}/release', [ReceiptPrintJobController::class, 'release']);
 
 Route::prefix('hybrid')->group(function () {
     Route::middleware([AuthenticateHybridDevice::class])->group(function () {

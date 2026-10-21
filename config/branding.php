@@ -53,12 +53,8 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Receipt printer (QZ Tray self-checkout)
+    | Receipt printer name (Windows print dialog fallback)
     |--------------------------------------------------------------------------
-    |
-    | Windows printer name as shown in Devices and Printers / QZ Tray.
-    | Example: POS-80
-    |
     */
     'receipt_printer' => env('RECEIPT_PRINTER_NAME', 'POS-80'),
 
