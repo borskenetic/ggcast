@@ -4,9 +4,8 @@ namespace App\Console\Commands;
 
 use App\Services\ReceiptPrinterService;
 use Illuminate\Console\Command;
-use Illuminate\Http\Client\PendingRequest;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Throwable;
 
 class WatchReceiptPrinterCommand extends Command
@@ -16,8 +15,6 @@ class WatchReceiptPrinterCommand extends Command
                             {--interval=2 : Seconds between checks}';
 
     protected $description = 'On the laptop with the USB printer: pull checkout receipts from the live OPAC and print them';
-
-    private ?array $workingAttempt = null;
 
     public function handle(ReceiptPrinterService $printer): int
     {
@@ -50,6 +47,7 @@ class WatchReceiptPrinterCommand extends Command
         $this->info('========================================');
         $this->line('Website : '.$base);
         $this->line('Printer : '.$printer->describeTarget());
+        $this->line('PHP curl : '.(extension_loaded('curl') ? 'yes' : 'no (using built-in HTTPS)'));
         $this->line('Network : Wi-Fi or Ethernet — both work.');
         $this->newLine();
         $this->line('Keep this window open.');
@@ -63,13 +61,13 @@ class WatchReceiptPrinterCommand extends Command
             try {
                 $response = $this->request($token, 'get', $base.'/api/receipt-jobs/next');
 
-                if ($response->status() === 403) {
+                if ((int) $response['status'] === 403) {
                     $this->error('Token rejected by '.$base.'. Check RECEIPT_PRINT_AGENT_TOKEN matches the live site.');
 
                     return self::FAILURE;
                 }
 
-                $job = $response->json('job');
+                $job = is_array($response['json'] ?? null) ? ($response['json']['job'] ?? null) : null;
                 if (is_array($job) && ! empty($job['id'])) {
                     $id = $job['id'];
                     $this->line(now()->format('H:i:s').' Printing job #'.$id.' …');
@@ -91,83 +89,109 @@ class WatchReceiptPrinterCommand extends Command
                     $lastHeartbeat = time();
                 }
             } catch (Throwable $e) {
-                $this->workingAttempt = null;
                 $this->warn(now()->format('H:i:s').' Network hiccup: '.$e->getMessage());
-                $this->warn('Cannot reach '.$base.' yet. The tablet website can still work; this PC needs a path to the internet.');
             }
 
             sleep($interval);
         }
     }
 
-    private function request(string $token, string $method, string $httpsUrl): Response
+    /**
+     * @return array{status: int, json: mixed}
+     */
+    private function request(string $token, string $method, string $url): array
     {
-        $attempts = $this->workingAttempt ? [$this->workingAttempt] : $this->connectionAttempts($httpsUrl);
+        $urls = [$url];
+        $httpUrl = (string) preg_replace('#^https:#i', 'http:', $url);
+        if ($httpUrl !== $url) {
+            $urls[] = $httpUrl;
+        }
+
         $last = null;
 
-        foreach ($attempts as $attempt) {
+        foreach ($urls as $tryUrl) {
+            if (extension_loaded('curl')) {
+                try {
+                    return $this->curlRequest($token, $method, $tryUrl);
+                } catch (Throwable $e) {
+                    $last = $e;
+                }
+            }
+
             try {
-                $pending = $this->client($token, $attempt['options']);
-                $response = $method === 'post'
-                    ? $pending->post($attempt['url'])
-                    : $pending->get($attempt['url']);
-
-                $this->workingAttempt = $attempt;
-
-                return $response;
+                return $this->streamRequest($token, $method, $tryUrl);
             } catch (Throwable $e) {
                 $last = $e;
             }
         }
 
-        throw $last ?? new \RuntimeException('Could not reach the live site.');
+        throw $last ?? new RuntimeException('Could not reach the live site.');
     }
 
     /**
-     * @return list<array{url: string, options: array<string, mixed>}>
+     * @return array{status: int, json: mixed}
      */
-    private function connectionAttempts(string $httpsUrl): array
+    private function curlRequest(string $token, string $method, string $url): array
     {
-        $httpUrl = (string) preg_replace('#^https:#i', 'http:', $httpsUrl);
-        $host = (string) parse_url($httpsUrl, PHP_URL_HOST);
-        $ipv4 = $host !== '' ? gethostbyname($host) : $host;
-
-        $attempts = [
-            ['url' => $httpsUrl, 'options' => []],
-        ];
-
-        if ($ipv4 !== '' && $ipv4 !== $host && filter_var($ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            $attempts[] = [
-                'url' => $httpsUrl,
-                'options' => [
-                    'curl' => [
-                        CURLOPT_RESOLVE => [
-                            $host.':443:'.$ipv4,
-                            $host.':80:'.$ipv4,
-                        ],
-                        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-                    ],
-                ],
-            ];
-        }
-
-        if ($httpUrl !== $httpsUrl) {
-            $attempts[] = ['url' => $httpUrl, 'options' => []];
-        }
-
-        return $attempts;
-    }
-
-    /**
-     * @param  array<string, mixed>  $options
-     */
-    private function client(string $token, array $options): PendingRequest
-    {
-        return Http::timeout(15)
+        $pending = Http::withoutVerifying()
+            ->timeout(15)
             ->connectTimeout(8)
-            ->withOptions($options)
             ->withHeaders(['X-Receipt-Token' => $token])
             ->acceptJson()
             ->withUserAgent('GGCAST-ReceiptPrinter/1.0');
+
+        $response = strtolower($method) === 'post'
+            ? $pending->post($url)
+            : $pending->get($url);
+
+        return [
+            'status' => $response->status(),
+            'json' => $response->json(),
+        ];
+    }
+
+    /**
+     * @return array{status: int, json: mixed}
+     */
+    private function streamRequest(string $token, string $method, string $url): array
+    {
+        $context = stream_context_create([
+            'http' => [
+                'method' => strtoupper($method) === 'POST' ? 'POST' : 'GET',
+                'header' => implode("\r\n", [
+                    'Accept: application/json',
+                    'X-Receipt-Token: '.$token,
+                    'User-Agent: GGCAST-ReceiptPrinter/1.0',
+                    'Content-Length: 0',
+                ]),
+                'timeout' => 15,
+                'ignore_errors' => true,
+                'follow_location' => 1,
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true,
+            ],
+        ]);
+
+        $body = @file_get_contents($url, false, $context);
+        if ($body === false) {
+            $error = error_get_last();
+
+            throw new RuntimeException($error['message'] ?? 'Could not open '.$url);
+        }
+
+        $status = 200;
+        foreach ($http_response_header ?? [] as $line) {
+            if (preg_match('/HTTP\/\S+\s+(\d{3})/', $line, $match)) {
+                $status = (int) $match[1];
+            }
+        }
+
+        return [
+            'status' => $status,
+            'json' => json_decode($body, true),
+        ];
     }
 }
