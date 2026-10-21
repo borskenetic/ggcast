@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="{{ asset('css/books/index.css') }}">
     <script src="{{ asset('vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ asset('vendor/qz-tray/qz-tray.js') }}"></script>
 </head>
 
 <body>

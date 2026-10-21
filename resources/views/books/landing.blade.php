@@ -21,7 +21,6 @@
             window.location.replace(dest);
         })();
     </script>
-    <script src="{{ asset('vendor/qz-tray/qz-tray.js') }}"></script>
 </head>
 
 <body class="opac-body">

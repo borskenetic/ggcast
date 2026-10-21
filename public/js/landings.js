@@ -441,56 +441,75 @@ function confirmCheckout() {
 }
 
 /* =========================================
-   QZ TRAY PRINTING
+   BROWSER RECEIPT PRINTING (no QZ Tray)
+   Select POS-80 in the print dialog, or set it as
+   the Windows default printer. Chrome kiosk:
+   chrome.exe --kiosk --kiosk-printing
 ========================================= */
 
-if (typeof qz !== 'undefined') {
-    qz.security.setCertificatePromise(function (resolve) {
-        resolve('-----BEGIN CERTIFICATE-----\nYOUR CERT HERE\n-----END CERTIFICATE-----');
-    });
-
-    qz.security.setSignaturePromise(function () {
-        return function (resolve) {
-            resolve('SIGNATURE');
-        };
-    });
+function escapeReceiptText(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
-function connectQZ() {
-    if (typeof qz === 'undefined') return Promise.reject(new Error('QZ Tray not loaded'));
-    if (qz.websocket.isActive()) return Promise.resolve();
-    return qz.websocket.connect();
-}
+function buildCheckoutReceiptHtml() {
+    const libraryName = window.LIBRARY_NAME || 'Library';
+    const now = new Date();
+    const booksHtml = window.selectedBooks.map((book) => `
+        <div class="item">
+            <div class="title">${escapeReceiptText(book.title)}</div>
+            ${book.author ? `<div>${escapeReceiptText(book.author)}</div>` : ''}
+            ${book.barcode ? `<div>Barcode: ${escapeReceiptText(book.barcode)}</div>` : ''}
+            <div>Due: ${escapeReceiptText(book.due_date || '')}</div>
+        </div>
+    `).join('');
 
-function preferredReceiptPrinters() {
-    const configured = String(window.RECEIPT_PRINTER_NAME || '').trim();
-    return [configured, 'POS-80', 'POS-80C', 'POS80', 'GLPrint'].filter(Boolean)
-        .filter((name, index, list) => list.findIndex((item) => item.toLowerCase() === name.toLowerCase()) === index);
-}
-
-function matchReceiptPrinter(printers) {
-    const list = (Array.isArray(printers) ? printers : [printers]).map(String);
-    const preferred = preferredReceiptPrinters();
-
-    for (const name of preferred) {
-        const exact = list.find((printer) => printer.toLowerCase() === name.toLowerCase());
-        if (exact) return exact;
-    }
-
-    for (const name of preferred) {
-        const needle = name.toLowerCase().replace(/\s+/g, '');
-        const partial = list.find((printer) => printer.toLowerCase().replace(/\s+/g, '').includes(needle));
-        if (partial) return partial;
-    }
-
-    throw new Error(
-        'Receipt printer not found. Looking for "' + (preferred[0] || 'POS-80') +
-        '". Available printers: ' + (list.join(', ') || '(none)')
-    );
-}
-
-function resolveReceiptPrinter() {
-    return qz.printers.find().then(matchReceiptPrinter);
+    return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Checkout receipt</title>
+<style>
+  @page { size: 80mm auto; margin: 4mm; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 72mm;
+    background: #fff;
+    color: #000;
+    font-family: "Consolas", "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .receipt { width: 72mm; }
+  .center { text-align: center; }
+  .library { font-weight: 700; font-size: 13px; text-transform: uppercase; }
+  .muted { margin: 4px 0 10px; }
+  .rule { border-top: 1px dashed #000; margin: 8px 0; }
+  .name { font-weight: 700; text-transform: uppercase; }
+  .item { margin-bottom: 8px; }
+  .title { font-weight: 700; }
+  .served { margin-top: 10px; }
+</style>
+</head>
+<body>
+  <div class="receipt">
+    <div class="center library">${escapeReceiptText(libraryName)}</div>
+    <div class="center muted">${escapeReceiptText(now.toLocaleDateString())} ${escapeReceiptText(now.toLocaleTimeString())}</div>
+    <div class="name">${escapeReceiptText(window.selectedStudent.name)}</div>
+    <div>${escapeReceiptText(window.selectedStudent.id_number)}</div>
+    <div class="rule"></div>
+    <div class="title">Today's Checkouts</div>
+    <div class="rule"></div>
+    ${booksHtml}
+    <div class="rule"></div>
+    <div class="served">Served By: ________________</div>
+  </div>
+</body>
+</html>`;
 }
 
 window.printReceiptBulk = function printReceiptBulk() {
@@ -499,54 +518,44 @@ window.printReceiptBulk = function printReceiptBulk() {
         return;
     }
 
-    connectQZ()
-        .then(resolveReceiptPrinter)
-        .then((printerName) => {
-            const config = qz.configs.create(printerName);
-            const libraryName = window.LIBRARY_NAME || 'Library';
+    const previous = document.getElementById('checkoutReceiptFrame');
+    if (previous) previous.remove();
 
-            const now = new Date();
-            const formattedDate = now.toLocaleDateString();
-            const formattedTime = now.toLocaleTimeString();
+    const iframe = document.createElement('iframe');
+    iframe.id = 'checkoutReceiptFrame';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
 
-            let lines = '';
-            window.selectedBooks.forEach((book) => {
-                lines += `${book.title}\n`;
-                lines += `${book.author || ''}\n`;
-                lines += `Barcode: ${book.barcode || ''}\n`;
-                lines += `Due Date: ${book.due_date || ''}\n`;
-                lines += '--------------------------------\n';
-            });
+    const frameWindow = iframe.contentWindow;
+    const frameDocument = iframe.contentDocument || frameWindow.document;
+    frameDocument.open();
+    frameDocument.write(buildCheckoutReceiptHtml());
+    frameDocument.close();
 
-            const data = [
-                '\x1B\x40',
-                '\x1B\x61\x00',
-                `${libraryName}\n`,
-                `${formattedDate} ${formattedTime}\n`,
-                '\n',
-                '\n',
-                `${window.selectedStudent.name.toUpperCase()}\n`,
-                `${window.selectedStudent.id_number}\n`,
-                '\n',
-                "Today's Checkouts\n",
-                '--------------------------------\n',
-                lines,
-                'Served By: ______________________\n',
-                '\n\n\n',
-                '\x1D\x56\x01'
-            ];
+    const triggerPrint = () => {
+        try {
+            frameWindow.focus();
+            frameWindow.print();
+        } catch (err) {
+            console.error('Receipt print failed:', err);
+            alert('Printing failed. Choose POS-80 in the print dialog.');
+        }
+        setTimeout(() => {
+            if (iframe.parentNode) iframe.remove();
+        }, 1500);
+    };
 
-            return qz.print(config, [{
-                type: 'raw',
-                format: 'command',
-                data: data.join('')
-            }]);
-        })
-        .catch((err) => {
-            console.error('QZ Tray Error:', err);
-            const message = err && err.message ? err.message : String(err);
-            alert('Printing failed. ' + message + '\n\nMake sure QZ Tray is running and the printer is named POS-80.');
-        });
+    if (frameDocument.readyState === 'complete') {
+        setTimeout(triggerPrint, 50);
+    } else {
+        iframe.onload = () => setTimeout(triggerPrint, 50);
+    }
 };
 
 /* =========================================
