@@ -25,6 +25,8 @@
             <form method="POST" action="{{ route('fines.update') }}">
                 @csrf
 
+                <h5 class="mb-3">Regular books</h5>
+
                 <div class="mb-3">
                     <label class="form-label">Fine per Day (₱)</label>
                     <input type="number" step="0.01" name="fine_per_day"
@@ -40,10 +42,11 @@
                 </div>
 
                 <div class="mb-3">
-                    <label>Loan Duration (days)</label>
-                    <input type="number" name="loan_duration_days"
-                           value="{{ $settings->loan_duration_days }}"
-                           class="form-control">
+                    <label class="form-label">Loan duration (business days)</label>
+                    <input type="number" name="loan_duration_days" min="1"
+                           value="{{ $settings->loan_duration_days ?? 7 }}"
+                           class="form-control" required>
+                    <div class="form-text">Due date for copies that are not on reserve. Self-checkout uses this length. Weekends and holidays are skipped.</div>
                 </div>
 
                 <div class="mb-3">
@@ -51,6 +54,43 @@
                     <input type="number" name="grace_period_days"
                            class="form-control"
                            value="{{ $settings->grace_period_days ?? 0 }}" required>
+                </div>
+
+                <hr>
+
+                <h5 class="mb-2">Reserve books</h5>
+                <p class="text-muted small">
+                    Used when the copy’s sublocation contains “Reserve”. These fines and due dates
+                    are separate from the regular policy above.
+                </p>
+
+                <div class="mb-3">
+                    <label class="form-label">Reserve fine per day (₱)</label>
+                    <input type="number" step="0.01" name="reserve_fine_per_day"
+                           class="form-control"
+                           value="{{ old('reserve_fine_per_day', $settings->reserve_fine_per_day ?? $settings->fine_per_day ?? '') }}" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Reserve maximum fine (₱)</label>
+                    <input type="number" step="0.01" name="reserve_max_fine"
+                           class="form-control"
+                           value="{{ old('reserve_max_fine', $settings->reserve_max_fine ?? '') }}">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Reserve loan duration (business days)</label>
+                    <input type="number" name="reserve_loan_duration_days" min="1"
+                           value="{{ old('reserve_loan_duration_days', $settings->reserve_loan_duration_days ?? 1) }}"
+                           class="form-control" required>
+                    <div class="form-text">Due date for reserve copies. Self-checkout always uses this length. Staff can still set a different date at the circulation desk.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Reserve grace period (days)</label>
+                    <input type="number" name="reserve_grace_period_days" min="0"
+                           class="form-control"
+                           value="{{ old('reserve_grace_period_days', $settings->reserve_grace_period_days ?? 0) }}" required>
                 </div>
 
                 <button class="btn btn-primary">Save Fine Policy</button>

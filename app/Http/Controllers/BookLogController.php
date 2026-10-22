@@ -9,6 +9,7 @@ use App\Models\FineSetting;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Support\LoanDueDate;
+use App\Support\LoanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -154,6 +155,15 @@ class BookLogController extends Controller
             });
         }
 
+        if ($request->filled('accession_no')) {
+            $accessionTerm = trim((string) $request->accession_no);
+            if ($accessionTerm !== '') {
+                $logs->whereHas('book', function ($query) use ($accessionTerm) {
+                    $query->where('accession_no', 'like', '%'.$accessionTerm.'%');
+                });
+            }
+        }
+
         if ($request->filled('start_date')) {
             $logs->whereDate('timestamp', '>=', $request->start_date);
         }
@@ -284,24 +294,9 @@ class BookLogController extends Controller
                 return back()->with('error', $cooldownError);
             }
 
-            $active = $studentId
-                ? BookLog::countActiveLoansForStudent($studentId)
-                : BookLog::countActiveLoansForEmployee($employeeId);
-
-            if ($studentId) {
-                if (Setting::wouldExceedStudentLoanLimit($active)) {
-                    $studentMax = Setting::maxLoansForStudents();
-                    return back()->with(
-                        'error',
-                        'This patron already has the maximum of '.$studentMax.' books on loan (including room use). Check one in first, or use check out only for books taken outside the library.'
-                    );
-                }
-            } elseif (Setting::wouldExceedEmployeeLoanLimit($active)) {
-                $employeeMax = Setting::maxLoansForEmployees();
-                return back()->with(
-                    'error',
-                    'This patron already has the maximum of '.$employeeMax.' books on loan (including room use). Check one in first, or use check out only for books taken outside the library.'
-                );
+            $limitMessage = LoanLimits::rejectionMessage($studentId, $employeeId, [$book]);
+            if ($limitMessage) {
+                return back()->with('error', $limitMessage);
             }
         }
 
@@ -317,16 +312,27 @@ class BookLogController extends Controller
 
         $settings = FineSetting::latest('created_at')->first();
 
+        if ($isOutbound && $action === 'checked_out' && ! $settings) {
+            return back()->with('error', 'Fine settings are not configured.');
+        }
+
         $dueDate = null;
         $returnedDate = null;
         $fineIncurred = null;
 
+        $isReserveLoan = $book->isReserve();
+        if (! $isOutbound && $lastLog) {
+            $isReserveLoan = $lastLog->usesReservePolicy();
+        }
+
         if ($isOutbound && $action === 'checked_out') {
-            $loanTerms = LoanDueDate::resolveFromRequest(
+            $loanTerms = LoanDueDate::forCopy(
                 Carbon::now('Asia/Manila'),
                 $settings,
+                $book,
                 $request->input('due_date'),
                 $request->filled('loan_duration_days') ? (int) $request->loan_duration_days : null,
+                true,
             );
             $dueDate = $loanTerms['due_date'];
         }
@@ -337,9 +343,9 @@ class BookLogController extends Controller
             if ($lastLog && $lastLog->due_date) {
                 $dueDate = $lastLog->due_date;
 
-                $gracePeriod = $settings->grace_period_days ?? 0;
-                $finePerDay = $settings->fine_per_day ?? 0;
-                $maxFine = $settings->max_fine;
+                $gracePeriod = $settings->graceDaysFor($isReserveLoan);
+                $finePerDay = $settings->finePerDayFor($isReserveLoan);
+                $maxFine = $settings->maxFineFor($isReserveLoan);
 
                 $overdueDays = $this->calculateOverdueDays(
                     Carbon::parse($dueDate)->startOfDay(),
@@ -350,12 +356,13 @@ class BookLogController extends Controller
                 $fineIncurred = $overdueDays * $finePerDay;
 
                 if ($overdueDays > 0) {
+                    $rateName = $isReserveLoan ? 'reserve fine' : 'fine';
                     session()->flash('overdue_modal', [
                         'book_title' => $book->title_statement,
                         'patron_name' => $patronName,
                         'days_late' => $overdueDays,
                         'fine' => $fineIncurred,
-                        'breakdown' => "{$overdueDays} day(s) × ₱".number_format($finePerDay, 2).' = ₱'.number_format($fineIncurred, 2),
+                        'breakdown' => "{$overdueDays} day(s) × ₱".number_format($finePerDay, 2)." ({$rateName}) = ₱".number_format($fineIncurred, 2),
                     ]);
                 }
 
@@ -372,6 +379,7 @@ class BookLogController extends Controller
             'patron_name' => $patronName,
             'status' => $newStatus,
             'circulation_type' => $circulationType,
+            'is_reserve' => $isReserveLoan,
             'renew_count' => 0,
             'timestamp' => Carbon::now('Asia/Manila'),
             'due_date' => $dueDate,
@@ -382,7 +390,15 @@ class BookLogController extends Controller
         $book->save();
 
         if ($action === 'room_use') {
-            return back()->with('success', 'Room use recorded (in library only). Remind the patron to check in when finished.');
+            $reserveNote = $isReserveLoan ? ' This reserve copy counts toward the reserve limit and the total loan limit.' : '';
+
+            return back()->with('success', 'Room use recorded (in library only). Remind the patron to check in when finished.'.$reserveNote);
+        }
+
+        if ($action === 'checked_out' && $dueDate) {
+            $kind = $isReserveLoan ? 'Reserve book checked out' : 'Book checked out';
+
+            return back()->with('success', $kind.'. Due '.$dueDate->format('Y-m-d').'.');
         }
 
         return back()->with('success', "Book has been {$newStatus} successfully!");
@@ -418,12 +434,19 @@ class BookLogController extends Controller
         }
 
         $renewCount = (int) ($lastLog->renew_count ?? 0);
-        if ($renewCount >= BookController::MAX_RENEWALS_PER_LOAN) {
-            return back()->with('error', 'Renewal limit reached (max '.BookController::MAX_RENEWALS_PER_LOAN.' renewals).');
+        $maxRenewals = Setting::maxRenewalsPerLoan();
+        if ($maxRenewals <= 0) {
+            return back()->with('error', 'Renewals are turned off.');
+        }
+        if ($renewCount >= $maxRenewals) {
+            return back()->with('error', 'Renewal limit reached (max '.$maxRenewals.' renewals).');
         }
 
         $settings = FineSetting::latest('created_at')->first();
-        $loanDays = (int) ($settings->loan_duration_days ?? 7);
+        $reserveLoan = $lastLog->usesReservePolicy();
+        $loanDays = $reserveLoan
+            ? (int) ($settings?->reserveLoanDays() ?? 1)
+            : (int) ($settings->loan_duration_days ?? 7);
 
         $base = Carbon::parse($lastLog->due_date, 'Asia/Manila');
         $newDue = $this->addBusinessDays($base, $loanDays);
@@ -433,7 +456,9 @@ class BookLogController extends Controller
         $lastLog->last_renewed_at = Carbon::now('Asia/Manila');
         $lastLog->save();
 
-        return back()->with('success', 'Loan renewed. New due date: '.$newDue->format('Y-m-d').'. ('.$lastLog->renew_count.'/'.BookController::MAX_RENEWALS_PER_LOAN.' renewals used)');
+        $renewLabel = $reserveLoan ? 'Reserve loan renewed' : 'Loan renewed';
+
+        return back()->with('success', $renewLabel.'. New due date: '.$newDue->format('Y-m-d').'. ('.$lastLog->renew_count.'/'.$maxRenewals.' renewals used)');
     }
 
     protected function patronDisplayLabel(Student $s): string
@@ -532,6 +557,27 @@ class BookLogController extends Controller
         return response()->json($titles->map(fn ($title) => ['title' => $title]));
     }
 
+    public function accessionLogSuggestions(Request $request)
+    {
+        $search = trim((string) $request->get('query', ''));
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $books = Book::query()
+            ->whereHas('logs')
+            ->whereNotNull('accession_no')
+            ->where('accession_no', 'like', '%'.$search.'%')
+            ->orderBy('accession_no')
+            ->limit(12)
+            ->get(['accession_no', 'title_statement']);
+
+        return response()->json($books->map(fn (Book $book) => [
+            'accession_no' => $book->accession_no,
+            'label' => trim($book->accession_no.($book->title_statement ? ' — '.$book->title_statement : '')),
+        ]));
+    }
+
     public function patronSuggestions(Request $request)
     {
         $search = trim((string) $request->get('query', ''));
@@ -571,6 +617,8 @@ class BookLogController extends Controller
                     'copy_identifier' => $b->copyIdentifierForCirculation(),
                     'copy_identifier_summary' => $b->copyIdentifierSummary(),
                     'availability' => $b->availability,
+                    'section' => $b->section,
+                    'is_reserve' => $b->isReserve(),
                     'last_student_id' => $lastCheckout?->student_id,
                     'last_employee_id' => $lastCheckout?->employee_id,
                     'last_patron' => $lastCheckout ? $lastCheckout->patronLabel() : null,

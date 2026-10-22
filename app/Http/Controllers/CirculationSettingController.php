@@ -13,6 +13,8 @@ class CirculationSettingController extends Controller
             'studentMax' => Setting::maxLoansForStudents(),
             'employeeUnlimited' => Setting::employeeLoansUnlimited(),
             'employeeMax' => Setting::maxLoansForEmployees(),
+            'reserveMax' => Setting::maxReserveLoans(),
+            'maxRenewals' => Setting::maxRenewalsPerLoan(),
         ]);
     }
 
@@ -24,12 +26,16 @@ class CirculationSettingController extends Controller
             'student_max' => 'required|integer|min:1|max:100',
             'employee_unlimited' => 'required|in:0,1',
             'employee_max' => $employeeUnlimited ? 'nullable|integer|min:1|max:100' : 'required|integer|min:1|max:100',
+            'reserve_max' => 'required|integer|min:0|max:100',
+            'max_renewals' => 'required|integer|min:0|max:100',
         ]);
 
         Setting::setBorrowLimits(
             (int) $request->input('student_max'),
             $employeeUnlimited,
-            (int) ($request->input('employee_max') ?: Setting::DEFAULT_MAX_LOANS_EMPLOYEES)
+            (int) ($request->input('employee_max') ?: Setting::DEFAULT_MAX_LOANS_EMPLOYEES),
+            (int) $request->input('reserve_max'),
+            (int) $request->input('max_renewals')
         );
 
         return redirect()

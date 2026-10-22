@@ -118,6 +118,7 @@ class HybridOpacSnapshotService
             'call_number' => $b->call_number,
             'availability' => $b->availability,
             'section' => $b->section,
+            'is_reserve' => $b->isReserve(),
             'updated_at' => $b->updated_at?->toIso8601String(),
         ])->values();
 

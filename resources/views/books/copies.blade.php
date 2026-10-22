@@ -24,7 +24,8 @@
         Copies of: <strong>{{ $title }}</strong><br>
         <small>{{ $author }} — {{ $year }}</small>
     </h3>
-    <p class="text-muted small mb-0">Add a specific copy to your cart, then use <strong>Back to OPAC</strong> to browse and check out everything together (cart is saved in this browser).</p>
+    <p class="text-muted small mb-2">Add a specific copy to your cart, then use <strong>Back to OPAC</strong> to browse and check out everything together (cart is saved in this browser).</p>
+    @include('partials.reserve_loan_policy_note')
 
     <table class="table table-bordered table-striped mt-3">
         <thead>
@@ -32,6 +33,7 @@
                 <th>Accession No</th>
                 <th>Barcode</th>
                 <th>RFID</th>
+                <th>Sublocation</th>
                 <th>Availability</th>
                 <th>Date Added</th>
                 <th>Actions</th>
@@ -40,10 +42,16 @@
 
         <tbody>
             @foreach($copies as $copy)
-            <tr>
+            <tr data-copy-id="{{ $copy->id }}" data-reserve="{{ $copy->isReserve() ? '1' : '0' }}">
                 <td>{{ $copy->accession_no }}</td>
                 <td>{{ $copy->barcode }}</td>
                 <td>{{ $copy->rfid }}</td>
+                <td>
+                    {{ $copy->section ?: '—' }}
+                    @if($copy->isReserve())
+                        <span class="badge text-bg-warning">Reserve</span>
+                    @endif
+                </td>
 
                 <td class="{{ $copy->availability === 'Available' ? 'text-success' : 'text-danger' }}">
                     {{ $copy->availability }}
@@ -64,7 +72,8 @@
                             class="btn btn-dark btn-sm btn-add-copy-to-cart"
                             data-copy-id="{{ $copy->id }}"
                             data-title="{{ e($copy->title_statement) }}"
-                            data-author="{{ e($author) }}">
+                            data-author="{{ e($author) }}"
+                            data-reserve="{{ $copy->isReserve() ? '1' : '0' }}">
                             Add to Cart
                         </button>
                     @else
@@ -114,7 +123,7 @@
 
         <div class="cart-header">
             <h2>Borrow Cart</h2>
-            <p>Maximum of 5 books allowed</p>
+            @include('partials.reserve_loan_policy_note')
         </div>
 
         <div id="cartBody" class="cart-body">
@@ -165,8 +174,6 @@
 
 <div id="toastContainer" class="toast-container"></div>
 
-@include('partials.loan_terms_modal')
-
 <script>
     window.CHECKOUT_URL = "{{ route('checkout.process') }}";
     window.CSRF_TOKEN = "{{ csrf_token() }}";
@@ -174,9 +181,8 @@
     window.RECEIPT_PRINT_AGENT_URL = @json(config('printing.agent_url', ''));
     window.RECEIPT_PRINT_AGENT_TOKEN = @json(config('printing.agent_token', ''));
     window.LIBRARY_NAME = @json($brand['library_name'] ?? config('branding.library_name', 'Library'));
-    window.LOAN_DEFAULT_DAYS = @json((int) (optional(\App\Models\FineSetting::latest('created_at')->first())->loan_duration_days ?? 7));
+    @include('partials.loan_policy_vars')
 </script>
-<script src="{{ asset('js/loan-terms.js') }}"></script>
 <script src="{{ asset('js/cart.js') }}"></script>
 <script src="{{ asset('js/landings.js') }}"></script>
 <script>
@@ -187,8 +193,9 @@
         var id = btn.getAttribute('data-copy-id');
         var title = btn.getAttribute('data-title') || '';
         var author = btn.getAttribute('data-author') || '';
+        var reserve = btn.getAttribute('data-reserve') === '1';
         if (id && typeof selectBookAndAddToCart === 'function') {
-            selectBookAndAddToCart(id, title, author);
+            selectBookAndAddToCart(id, title, author, reserve);
         }
     });
 </script>

@@ -1,21 +1,30 @@
 @php
-    $loanDefaultDays = $loanDefaultDays ?? (int) (optional(\App\Models\FineSetting::latest('created_at')->first())->loan_duration_days ?? 7);
+    $loanPolicy = \App\Models\FineSetting::latest('created_at')->first();
+    $loanDefaultDays = max(1, (int) ($loanPolicy?->loan_duration_days ?? 7));
+    $reserveLoanDays = $loanPolicy ? $loanPolicy->reserveLoanDays() : 1;
+    $maxReserveLoans = \App\Models\Setting::maxReserveLoans();
 @endphp
 
 <div class="modal" id="loanTermsModal" style="display:none;" aria-hidden="true">
-    <div class="modal-content" style="max-width: 440px;">
+    <div class="modal-content" style="max-width: 480px;">
         <span class="close" id="loanTermsModalClose" aria-label="Close">&times;</span>
 
         <h4 class="mb-2">Loan period</h4>
-        <p class="text-muted small mb-3">
-            Use the library default or set a shorter (or longer) due date for this checkout.
+        <p class="text-muted small mb-2">
+            Regular copies use <strong>{{ $loanDefaultDays }}</strong> business days.
+            Reserve copies (sublocation contains “Reserve”) use <strong>{{ $reserveLoanDays }}</strong>
+            business {{ $reserveLoanDays === 1 ? 'day' : 'days' }} and a separate fine.
+            Patrons may have at most <strong>{{ $maxReserveLoans }}</strong> reserve
+            {{ $maxReserveLoans === 1 ? 'book' : 'books' }} on loan, and each one counts toward the total limit.
         </p>
+        <p class="text-muted small mb-3" id="loanTermsReserveNote"></p>
 
         <div class="form-check mb-2">
             <input class="form-check-input" type="radio" name="loan_terms_mode" id="loanTermsDefault" value="default" checked>
             <label class="form-check-label" for="loanTermsDefault">
-                Use current fine settings
-                (<strong id="loanTermsDefaultDays">{{ $loanDefaultDays }}</strong> business days)
+                Use library default
+                (<strong id="loanTermsDefaultDays">{{ $loanDefaultDays }}</strong> business days for regular copies,
+                <strong id="loanTermsReserveDays">{{ $reserveLoanDays }}</strong> for reserve copies)
             </label>
         </div>
 

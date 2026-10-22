@@ -53,7 +53,7 @@ function bindOpacTabsOnce() {
     });
 }
 
-function addCopyToCartFromHoldings(copyId, title, author, availability) {
+function addCopyToCartFromHoldings(copyId, title, author, availability, isReserve) {
     if (availability !== 'Available') {
         showToast('This copy is not available.', 'error');
         return;
@@ -64,7 +64,8 @@ function addCopyToCartFromHoldings(copyId, title, author, availability) {
         author: author || '',
         availability: 'Available',
         copies: 1,
-        pubYear: ''
+        pubYear: '',
+        reserve: !!isReserve
     };
     if (typeof addToCart === 'function') addToCart();
 }
@@ -91,7 +92,7 @@ function renderHoldingsTable(copies, group) {
             <td>${escHtml(c.copy_no ?? '—')}</td>
             <td>${escHtml(c.collection ?? '—')}</td>
             <td>${escHtml(c.shelving_location ?? '—')}</td>
-            <td>${escHtml(c.circulation_type ?? '—')}</td>
+            <td>${c.is_reserve ? '<span class="badge text-bg-warning">Reserve</span> ' : ''}${escHtml(c.circulation_type ?? '—')}</td>
             <td>${escHtml(c.circulation_status ?? '—')}</td>
             <td>${escHtml(c.barcode ?? '—')}</td>
             <td>${escHtml(c.rfid ?? '—')}</td>
@@ -99,7 +100,7 @@ function renderHoldingsTable(copies, group) {
         `;
         tr.querySelector('.opac-add-cart-copy')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            addCopyToCartFromHoldings(c.id, title, author, c.availability);
+            addCopyToCartFromHoldings(c.id, title, author, c.availability, !!c.is_reserve);
         });
         tbody.appendChild(tr);
     });
@@ -327,7 +328,7 @@ function markBorrowedInUi(bookId) {
     }
 }
 
-function runCheckoutRequest(studentId, booksToCheckout, loanTerms) {
+function runCheckoutRequest(studentId, booksToCheckout) {
     if (!window.CHECKOUT_URL || !window.CSRF_TOKEN) {
         showToast('Checkout is not configured.', 'error');
         return;
@@ -337,8 +338,6 @@ function runCheckoutRequest(studentId, booksToCheckout, loanTerms) {
         student_id: studentId,
         books: booksToCheckout
     };
-    if (loanTerms?.due_date) payload.due_date = loanTerms.due_date;
-    if (loanTerms?.loan_duration_days) payload.loan_duration_days = loanTerms.loan_duration_days;
 
     fetch(window.CHECKOUT_URL, {
         method: 'POST',
@@ -361,6 +360,8 @@ function runCheckoutRequest(studentId, booksToCheckout, loanTerms) {
                     id: b.id,
                     title: b.title,
                     author: b.author || '',
+                    accession_no: b.accession_no || '',
+                    copyright_year: b.copyright_year || '',
                     barcode: b.barcode || '',
                     due_date: b.due_date || data.due_date || ''
                 }));
@@ -370,6 +371,8 @@ function runCheckoutRequest(studentId, booksToCheckout, loanTerms) {
                         id: data.book.id,
                         title: data.book.title,
                         author: data.book.author || '',
+                        accession_no: data.book.accession_no || '',
+                        copyright_year: data.book.copyright_year || '',
                         barcode: data.book.barcode || '',
                         due_date: data.book.due_date || data.due_date || ''
                     }];
@@ -433,11 +436,7 @@ function confirmCheckout() {
         return;
     }
 
-    const proceed = typeof promptLoanTerms === 'function'
-        ? promptLoanTerms()
-        : Promise.resolve({});
-
-    proceed.then((loanTerms) => runCheckoutRequest(studentId, booksToCheckout, loanTerms));
+    runCheckoutRequest(studentId, booksToCheckout);
 }
 
 function sendReceiptToPrintAgent() {
@@ -485,6 +484,8 @@ function buildCheckoutReceiptHtml() {
         <div class="item">
             <div class="title">${escapeReceiptText(book.title)}</div>
             ${book.author ? `<div>${escapeReceiptText(book.author)}</div>` : ''}
+            ${book.accession_no ? `<div>Accession: ${escapeReceiptText(book.accession_no)}</div>` : ''}
+            ${book.copyright_year ? `<div>Copyright year: ${escapeReceiptText(book.copyright_year)}</div>` : ''}
             ${book.barcode ? `<div>Barcode: ${escapeReceiptText(book.barcode)}</div>` : ''}
             <div>Due: ${escapeReceiptText(book.due_date || '')}</div>
         </div>

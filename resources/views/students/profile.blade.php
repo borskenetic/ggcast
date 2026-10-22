@@ -5,6 +5,7 @@
 @endsection
 
 @section('content')
+@php($maxRenewals = \App\Models\Setting::maxRenewalsPerLoan())
 <div class="container py-4">
 
     <div class="mb-3">
@@ -102,6 +103,9 @@
                                 @else
                                     <span class="badge bg-primary">Check out</span>
                                 @endif
+                                @if($log->usesReservePolicy())
+                                    <span class="badge text-bg-warning">Reserve</span>
+                                @endif
                             </td>
                             <td>
                                 @if($log->due_date)
@@ -112,7 +116,7 @@
                             </td>
                             <td>
                                 @if(($log->circulation_type ?? \App\Models\BookLog::CIRCULATION_CHECKOUT) === \App\Models\BookLog::CIRCULATION_CHECKOUT)
-                                    {{ (int) ($log->renew_count ?? 0) }}/{{ \App\Http\Controllers\BookController::MAX_RENEWALS_PER_LOAN }}
+                                    {{ (int) ($log->renew_count ?? 0) }}/{{ $maxRenewals }}
                                 @else
                                     —
                                 @endif

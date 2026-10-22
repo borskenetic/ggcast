@@ -31,14 +31,16 @@ class LibraryHoldingsReportBuilder
      */
     public function buildForProgram(Program $program, ?int $recentYears = null): array
     {
-        $recentYears = $recentYears ?? (int) config('reports.recent_publication_years', 5);
-        $cutoffYear = (int) now()->year - $recentYears + 1;
+        $cutoffYear = $this->publicationYearCutoff($recentYears);
 
         $books = $this->booksForProgram($program, requireCourse: true);
+        $recentBooks = $books
+            ->filter(fn (Book $book) => $this->isRecentPublication($book->pub_year, $cutoffYear))
+            ->values();
 
         $courseOrder = $this->prospectusCourseOrder($program);
 
-        $detail = $this->buildDetailLines($books, $courseOrder);
+        $detail = $this->buildDetailLines($recentBooks, $courseOrder);
         $summary = $this->buildSummaryLines($books, $courseOrder, $cutoffYear);
 
         return [
@@ -509,6 +511,9 @@ class LibraryHoldingsReportBuilder
         $lines = $groups->map(function (Collection $copies) {
             /** @var Book $sample */
             $sample = $copies->first();
+            $years = $copies
+                ->map(fn (Book $book) => $this->normalizePubYear($book->pub_year))
+                ->filter(fn (?int $year) => $year !== null);
 
             return [
                 'collection_type' => $this->collectionTypeFor($sample),
@@ -517,7 +522,7 @@ class LibraryHoldingsReportBuilder
                 'course' => trim((string) $sample->course),
                 'title' => trim((string) $sample->title_statement),
                 'author' => trim((string) ($sample->main_author ?? '')),
-                'pub_year' => $this->normalizePubYear($sample->pub_year),
+                'pub_year' => $years->isEmpty() ? null : $years->max(),
                 'copy_count' => $copies->count(),
             ];
         })->values();
@@ -543,9 +548,9 @@ class LibraryHoldingsReportBuilder
             );
 
             $recentTitleGroups = $titleGroups->filter(function (Collection $copies) use ($cutoffYear) {
-                $year = $this->normalizePubYear($copies->first()->pub_year);
-
-                return $year !== null && $year >= $cutoffYear;
+                return $copies->contains(
+                    fn (Book $book) => $this->isRecentPublication($book->pub_year, $cutoffYear)
+                );
             });
 
             return [
@@ -631,6 +636,21 @@ class LibraryHoldingsReportBuilder
         return $sort[$normalized] ?? 99;
     }
 
+    protected function publicationYearCutoff(?int $recentYears = null): int
+    {
+        $recentYears = $recentYears ?? (int) config('reports.recent_publication_years', 5);
+        $recentYears = max(1, $recentYears);
+
+        return (int) now()->year - $recentYears + 1;
+    }
+
+    protected function isRecentPublication(mixed $pubYear, int $cutoffYear): bool
+    {
+        $year = $this->normalizePubYear($pubYear);
+
+        return $year !== null && $year >= $cutoffYear;
+    }
+
     protected function normalizePubYear(mixed $pubYear): ?int
     {
         if ($pubYear === null || $pubYear === '') {
@@ -638,11 +658,13 @@ class LibraryHoldingsReportBuilder
         }
 
         if (is_numeric($pubYear)) {
-            return (int) $pubYear;
+            $year = (int) $pubYear;
+
+            return $year >= 1000 ? $year : null;
         }
 
-        if (preg_match('/\b(19|20)\d{2}\b/', (string) $pubYear, $matches)) {
-            return (int) $matches[0];
+        if (preg_match_all('/(?:19|20)\d{2}/', (string) $pubYear, $matches)) {
+            return max(array_map('intval', $matches[0]));
         }
 
         return null;

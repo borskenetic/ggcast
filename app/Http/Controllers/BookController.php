@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Book;
 use App\Models\Ebook;
+use App\Models\FineSetting;
 use App\Models\Program;
 use App\Models\ProgramCourse;
 use App\Models\BookMarcField;
@@ -30,7 +31,7 @@ class BookController extends Controller
      */
     public const MAX_CONCURRENT_BOOK_LOANS_PER_STUDENT = 3;
 
-    /** Max number of renewals allowed per loan. */
+    /** Fallback when Borrow Limits has no renewal cap. Live value is {@see \App\Models\Setting::maxRenewalsPerLoan()}. */
     public const MAX_RENEWALS_PER_LOAN = 3;
 
     /** Cooldown (in days) before the same patron can borrow the same book again after return. */
@@ -511,6 +512,9 @@ class BookController extends Controller
         $fullBooks->loadMissing('programs');
 
         $marcViewRows = $this->opacMarcViewRowsForGroupedTitle($rep, $fullBooks);
+        $loanPolicy = FineSetting::latest('created_at')->first();
+        $regularLoanDays = max(1, (int) ($loanPolicy?->loan_duration_days ?? 7));
+        $reserveLoanDays = $loanPolicy ? $loanPolicy->reserveLoanDays() : 1;
 
         return response()->json([
             'group' => [
@@ -533,12 +537,15 @@ class BookController extends Controller
                 'genre' => $book->genre,
                 'series' => $book->series_title,
             ],
-            'copies' => $copies->map(function (Book $c) {
+            'copies' => $copies->map(function (Book $c) use ($regularLoanDays, $reserveLoanDays) {
                 $statusLabel = match ($c->availability) {
                     'Available' => 'On-Shelf',
                     'Borrowed' => 'Checked out',
                     default => $c->availability ?? '—',
                 };
+
+                $isReserve = $c->isReserve();
+                $loanDays = $isReserve ? $reserveLoanDays : $regularLoanDays;
 
                 return [
                     'id' => $c->id,
@@ -548,7 +555,9 @@ class BookController extends Controller
                     'copy_no' => null,
                     'collection' => $c->course,
                     'shelving_location' => trim(implode(' — ', array_filter([$c->library_name, $c->section]))),
-                    'circulation_type' => 'Regular circulation',
+                    'section' => $c->section,
+                    'is_reserve' => $isReserve,
+                    'circulation_type' => $loanDays.' business day'.($loanDays === 1 ? '' : 's'),
                     'circulation_status' => $statusLabel,
                     'availability' => $c->availability,
                     'barcode' => $c->barcode,

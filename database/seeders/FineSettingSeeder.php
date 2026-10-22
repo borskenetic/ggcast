@@ -20,6 +20,11 @@ class FineSettingSeeder extends Seeder
                 'fine_per_day' => 5.00,
                 'max_fine' => 500.00,
                 'grace_period_days' => 0,
+                'loan_duration_days' => 7,
+                'reserve_fine_per_day' => 5.00,
+                'reserve_max_fine' => 500.00,
+                'reserve_grace_period_days' => 0,
+                'reserve_loan_duration_days' => 1,
                 'effective_from' => now(),
             ]
         );

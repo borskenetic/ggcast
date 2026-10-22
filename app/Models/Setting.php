@@ -14,9 +14,17 @@ class Setting extends Model
 
     public const KEY_MAX_LOANS_EMPLOYEES_UNLIMITED = 'max_concurrent_loans_employees_unlimited';
 
+    public const KEY_MAX_RESERVE_LOANS = 'max_concurrent_reserve_loans';
+
+    public const KEY_MAX_RENEWALS = 'max_renewals_per_loan';
+
     public const DEFAULT_MAX_LOANS_STUDENTS = 5;
 
     public const DEFAULT_MAX_LOANS_EMPLOYEES = 10;
+
+    public const DEFAULT_MAX_RESERVE_LOANS = 1;
+
+    public const DEFAULT_MAX_RENEWALS = 3;
 
     protected $fillable = ['key', 'value'];
 
@@ -76,7 +84,33 @@ class Setting extends Model
         return $max > 0 ? $max : self::DEFAULT_MAX_LOANS_EMPLOYEES;
     }
 
-    public static function setBorrowLimits(int $studentMax, bool $employeeUnlimited, int $employeeMax): void
+    public static function maxReserveLoans(): int
+    {
+        $value = static::where('key', self::KEY_MAX_RESERVE_LOANS)->value('value');
+
+        if ($value === null || $value === '') {
+            return self::DEFAULT_MAX_RESERVE_LOANS;
+        }
+
+        $max = (int) $value;
+
+        return $max >= 0 ? $max : self::DEFAULT_MAX_RESERVE_LOANS;
+    }
+
+    public static function maxRenewalsPerLoan(): int
+    {
+        $value = static::where('key', self::KEY_MAX_RENEWALS)->value('value');
+
+        if ($value === null || $value === '') {
+            return self::DEFAULT_MAX_RENEWALS;
+        }
+
+        $max = (int) $value;
+
+        return $max >= 0 ? $max : self::DEFAULT_MAX_RENEWALS;
+    }
+
+    public static function setBorrowLimits(int $studentMax, bool $employeeUnlimited, int $employeeMax, int $reserveMax = self::DEFAULT_MAX_RESERVE_LOANS, int $maxRenewals = self::DEFAULT_MAX_RENEWALS): void
     {
         static::updateOrCreate(
             ['key' => self::KEY_MAX_LOANS_STUDENTS],
@@ -91,6 +125,16 @@ class Setting extends Model
         static::updateOrCreate(
             ['key' => self::KEY_MAX_LOANS_EMPLOYEES],
             ['value' => (string) $employeeMax]
+        );
+
+        static::updateOrCreate(
+            ['key' => self::KEY_MAX_RESERVE_LOANS],
+            ['value' => (string) max(0, $reserveMax)]
+        );
+
+        static::updateOrCreate(
+            ['key' => self::KEY_MAX_RENEWALS],
+            ['value' => (string) max(0, $maxRenewals)]
         );
     }
 

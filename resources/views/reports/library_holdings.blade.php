@@ -72,10 +72,14 @@
                            placeholder="Leave blank for a signature line">
                 </div>
 
+                @php
+                    $recentYears = max(1, (int) config('reports.recent_publication_years', 5));
+                    $recentFromYear = (int) now()->year - $recentYears + 1;
+                @endphp
                 <div class="alert alert-light border small mb-4">
                     <strong>Download includes three Excel sheets:</strong>
                     <ul class="mb-0 mt-2">
-                        <li><strong>Report 1</strong> — program-specific: unique titles per course with collection type, curriculum area, author, year, and copy count; per-course summary on the right</li>
+                        <li><strong>Report 1</strong> — program-specific titles published in the last {{ $recentYears }} years ({{ $recentFromYear }}–{{ now()->year }}), with collection type, curriculum area, author, year, and copy count. Older titles are left off the list. The summary still counts every title for the course, and separately counts those within {{ $recentYears }} years.</li>
                         <li><strong>Report 2</strong> — program holdings grouped by classification (General Reference, General Education, Filipiniana, Professional) with title and volume counts by print/electronic format</li>
                         <li><strong>Report 3</strong> — professional journal subscriptions from <a href="{{ route('ebooks.index') }}">View E-Resources</a> (type, journal name, publisher, publication scope, frequency, subscription, supporting link)</li>
                         <li>Footer on all sheets: signatory block (configure names in <code>REPORT_PREPARED_BY_NAME</code> / <code>REPORT_APPROVED_BY_NAME</code>)</li>

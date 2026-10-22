@@ -6,10 +6,10 @@ use App\Models\Book;
 use App\Models\BookLog;
 use App\Models\FineSetting;
 use App\Models\ReceiptPrintJob;
-use App\Models\Setting;
 use App\Models\Student;
 use App\Services\ReceiptPrinterService;
 use App\Support\LoanDueDate;
+use App\Support\LoanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -26,8 +26,6 @@ class CheckoutController extends Controller
                 'book_id' => 'nullable|integer',
                 'books' => 'nullable|array',
                 'books.*.id' => 'required_with:books|integer',
-                'due_date' => 'nullable|date|after_or_equal:today',
-                'loan_duration_days' => 'nullable|integer|min:1|max:365',
             ]);
 
             $student = Student::where('id_number', $request->student_id)->first();
@@ -88,12 +86,15 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            $currentLoans = BookLog::countActiveLoansForStudent((int) $student->id);
-            $studentMax = Setting::maxLoansForStudents();
-            if (Setting::wouldExceedStudentLoanLimit($currentLoans, count($availableIds))) {
+            $limitMessage = LoanLimits::rejectionMessage(
+                (int) $student->id,
+                null,
+                Book::query()->whereIn('id', $availableIds)->get()
+            );
+            if ($limitMessage) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Checkout blocked: patron may have at most '.$studentMax.' books on loan at a time (including room use).',
+                    'message' => 'Checkout blocked: '.$limitMessage,
                 ]);
             }
 
@@ -107,13 +108,6 @@ class CheckoutController extends Controller
             }
 
             $borrowedAt = Carbon::now('Asia/Manila');
-            $loanTerms = LoanDueDate::resolveFromRequest(
-                $borrowedAt,
-                $fineSetting,
-                $request->input('due_date'),
-                $request->filled('loan_duration_days') ? (int) $request->loan_duration_days : null,
-            );
-            $dueDate = $loanTerms['due_date'];
             $processedBooks = [];
 
             foreach ($availableIds as $bookId) {
@@ -122,6 +116,16 @@ class CheckoutController extends Controller
                 if (! $book || $book->availability !== 'Available') {
                     continue;
                 }
+
+                $loanTerms = LoanDueDate::forCopy(
+                    $borrowedAt,
+                    $fineSetting,
+                    $book,
+                    null,
+                    null,
+                    false,
+                );
+                $dueDate = $loanTerms['due_date'];
 
                 $latestReturn = BookLog::query()
                     ->where('student_id', $student->id)
@@ -146,6 +150,7 @@ class CheckoutController extends Controller
                     'patron_name' => $patronLegacyName,
                     'status' => 'Checked Out',
                     'circulation_type' => BookLog::CIRCULATION_CHECKOUT,
+                    'is_reserve' => $book->isReserve(),
                     'renew_count' => 0,
                     'timestamp' => $borrowedAt,
                     'due_date' => $dueDate,
@@ -158,6 +163,8 @@ class CheckoutController extends Controller
                     'id' => $book->id,
                     'title' => $book->title_statement,
                     'author' => $book->main_author,
+                    'accession_no' => $book->accession_no,
+                    'copyright_year' => $book->pub_year,
                     'barcode' => $book->barcode,
                     'due_date' => $dueDate->format('Y-m-d'),
                 ];
@@ -201,8 +208,6 @@ class CheckoutController extends Controller
         $request->validate([
             'student_id' => 'required|string',
             'book_ids' => 'required|array',
-            'due_date' => 'nullable|date|after_or_equal:today',
-            'loan_duration_days' => 'nullable|integer|min:1|max:365',
         ]);
 
         $student = Student::where('id_number', $request->student_id)->first();
@@ -248,23 +253,19 @@ class CheckoutController extends Controller
             return response()->json(['success' => false, 'message' => 'No available copies could be checked out.']);
         }
 
-        $currentLoans = BookLog::countActiveLoansForStudent((int) $student->id);
-        $studentMax = Setting::maxLoansForStudents();
-        if (Setting::wouldExceedStudentLoanLimit($currentLoans, count($availableIds))) {
+        $limitMessage = LoanLimits::rejectionMessage(
+            (int) $student->id,
+            null,
+            Book::query()->whereIn('id', $availableIds)->get()
+        );
+        if ($limitMessage) {
             return response()->json([
                 'success' => false,
-                'message' => 'Checkout blocked: patron may have at most '.$studentMax.' books on loan at a time.',
+                'message' => 'Checkout blocked: '.$limitMessage,
             ]);
         }
 
         $borrowedAt = Carbon::now('Asia/Manila');
-        $loanTerms = LoanDueDate::resolveFromRequest(
-            $borrowedAt,
-            $fineSetting,
-            $request->input('due_date'),
-            $request->filled('loan_duration_days') ? (int) $request->loan_duration_days : null,
-        );
-        $dueDate = $loanTerms['due_date'];
         $results = [];
 
         foreach ($availableIds as $bookId) {
@@ -273,6 +274,16 @@ class CheckoutController extends Controller
             if (! $book || $book->availability !== 'Available') {
                 continue;
             }
+
+            $loanTerms = LoanDueDate::forCopy(
+                $borrowedAt,
+                $fineSetting,
+                $book,
+                null,
+                null,
+                false,
+            );
+            $dueDate = $loanTerms['due_date'];
 
             $latestReturn = BookLog::query()
                 ->where('student_id', $student->id)
@@ -297,6 +308,7 @@ class CheckoutController extends Controller
                 'patron_name' => $patronLegacyName,
                 'status' => 'Checked Out',
                 'circulation_type' => BookLog::CIRCULATION_CHECKOUT,
+                'is_reserve' => $book->isReserve(),
                 'renew_count' => 0,
                 'timestamp' => $borrowedAt,
                 'due_date' => $dueDate,
@@ -309,6 +321,8 @@ class CheckoutController extends Controller
                 'id' => $book->id,
                 'title' => $book->title_statement,
                 'author' => $book->main_author,
+                'accession_no' => $book->accession_no,
+                'copyright_year' => $book->pub_year,
                 'barcode' => $book->barcode,
                 'due_date' => $dueDate->format('Y-m-d'),
             ];
@@ -329,7 +343,7 @@ class CheckoutController extends Controller
 
     /**
      * @param  array{name?: string, id_number?: string}  $student
-     * @param  list<array{title?: string, author?: string, barcode?: string, due_date?: string}>  $books
+     * @param  list<array{title?: string, author?: string, accession_no?: string, copyright_year?: string, barcode?: string, due_date?: string}>  $books
      */
     private function printCheckoutReceipt(array $student, array $books): bool
     {

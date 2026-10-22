@@ -9,9 +9,11 @@
     $hasFilters = request()->filled('student_id')
         || request()->filled('filter_patron')
         || request()->filled('book_title')
+        || request()->filled('accession_no')
         || request()->filled('start_date')
         || request()->filled('end_date')
         || request()->filled('circulation_type');
+    $maxRenewals = \App\Models\Setting::maxRenewalsPerLoan();
 @endphp
 
 <div class="circulation-page">
@@ -43,6 +45,7 @@
             <h2 class="circulation-card__title">Record transaction</h2>
             <p class="circulation-card__hint text-muted mb-0">
                 Scan or type the copy <strong>accession number</strong> (recommended), barcode, or RFID — then select patron and circulation type.
+                Reserve copies (sublocation contains “Reserve”) use the reserve due date and fine, and count toward both the reserve limit and the total loan limit.
             </p>
         </div>
         <form action="{{ route('logs.store') }}" method="POST" id="logTransactionForm" class="circulation-card__body">
@@ -87,7 +90,7 @@
     <section class="circulation-card">
         <div class="circulation-card__head">
             <h2 class="circulation-card__title">Transaction logs</h2>
-            <p class="circulation-card__hint text-muted mb-0">Search by patron or book title; narrow by date and loan type.</p>
+            <p class="circulation-card__hint text-muted mb-0">Search by patron, book title, or accession number; narrow by date and loan type.</p>
         </div>
         <form method="GET" action="{{ route('logs.index') }}" id="logFilterForm" class="circulation-card__body">
             <div class="row g-3">
@@ -122,6 +125,15 @@
                            value="{{ request('end_date') }}">
                 </div>
                 <div class="col-md-6 col-lg-4">
+                    <label for="filter_accession_no" class="form-label">Accession number</label>
+                    <div class="circulation-autocomplete-wrap">
+                        <input type="text" name="accession_no" id="filter_accession_no" class="form-control circulation-input"
+                               value="{{ request('accession_no') }}" autocomplete="off"
+                               placeholder="Search accession number…">
+                        <ul id="filterAccessionSuggestions" class="circulation-suggest list-group"></ul>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-4">
                     <label for="circulation_type" class="form-label">Loan type</label>
                     <select class="form-select circulation-input" name="circulation_type" id="circulation_type">
                         <option value="">All types</option>
@@ -150,6 +162,7 @@
                 <thead>
                     <tr>
                         <th>Book</th>
+                        <th>Author</th>
                         <th>Copy ID</th>
                         <th>Patron</th>
                         <th>Status</th>
@@ -177,17 +190,20 @@
                             $daysLate = max(0, $log->due_date->diffInDays($log->returned_date, false));
                             $daysLateWhole = floor($daysLate);
                             $settings = \App\Models\FineSetting::latest('created_at')->first();
-                            $gracePeriod = $settings->grace_period_days ?? 0;
-                            $finePerDay = $settings->fine_per_day ?? 0;
+                            $usesReserveRates = $log->usesReservePolicy();
+                            $gracePeriod = $settings ? $settings->graceDaysFor($usesReserveRates) : 0;
+                            $finePerDay = $settings ? $settings->finePerDayFor($usesReserveRates) : 0;
                             $effectiveLate = max(0, $daysLateWhole - $gracePeriod);
                             $isOverdue = $effectiveLate > 0;
                             if ($isOverdue) {
-                                $tooltip = "{$effectiveLate} day(s) × ₱".number_format($finePerDay, 2)." = ₱".number_format($log->fine_incurred, 2);
+                                $rateName = $usesReserveRates ? 'reserve fine' : 'fine';
+                                $tooltip = "{$effectiveLate} day(s) × ₱".number_format($finePerDay, 2)." ({$rateName}) = ₱".number_format($log->fine_incurred, 2);
                             }
                         }
                     @endphp
                     <tr>
                         <td class="circulation-table__title">{{ $log->book->title_statement ?? 'N/A' }}</td>
+                        <td class="circulation-table__author">{{ filled($log->book?->main_author) ? $log->book->main_author : '—' }}</td>
                         <td class="small">
                             @if($log->book)
                                 <code>{{ $log->book->copyIdentifierForCirculation() ?? '—' }}</code>
@@ -206,12 +222,17 @@
                                 <span class="badge text-bg-success">In</span>
                             @endif
                         </td>
-                        <td>{{ $log->circulationLabel() }}</td>
+                        <td>
+                            {{ $log->circulationLabel() }}
+                            @if($log->usesReservePolicy())
+                                <span class="badge text-bg-warning">Reserve</span>
+                            @endif
+                        </td>
                         <td class="text-nowrap small">{{ $log->timestamp_manila ?? '—' }}</td>
                         <td class="text-nowrap small">{{ $log->due_date ?? '—' }}</td>
                         <td class="small">
                             @if(($log->circulation_type ?? \App\Models\BookLog::CIRCULATION_CHECKOUT) === \App\Models\BookLog::CIRCULATION_CHECKOUT)
-                                {{ (int) ($log->renew_count ?? 0) }}/{{ \App\Http\Controllers\BookController::MAX_RENEWALS_PER_LOAN }}
+                                {{ (int) ($log->renew_count ?? 0) }}/{{ $maxRenewals }}
                             @else
                                 —
                             @endif
@@ -240,7 +261,7 @@
                             @if($log->status === 'Checked Out'
                                 && (($log->circulation_type ?? \App\Models\BookLog::CIRCULATION_CHECKOUT) === \App\Models\BookLog::CIRCULATION_CHECKOUT)
                                 && $log->due_date
-                                && (int) ($log->renew_count ?? 0) < \App\Http\Controllers\BookController::MAX_RENEWALS_PER_LOAN)
+                                && (int) ($log->renew_count ?? 0) < $maxRenewals)
                                 <form method="POST" action="{{ route('logs.renew', $log->book_id) }}" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="student_id" value="{{ $log->student_id }}">
@@ -252,7 +273,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="13" class="text-center text-muted py-5">No transactions match your filters.</td>
+                        <td colspan="14" class="text-center text-muted py-5">No transactions match your filters.</td>
                     </tr>
                     @endforelse
                 </tbody>
@@ -295,7 +316,8 @@
 
 @section('scripts')
 <script>
-    window.LOAN_DEFAULT_DAYS = @json($loanDefaultDays ?? 7);
+    @include('partials.loan_policy_vars')
+    window.LOAN_TERMS_RESERVE_HONORS_CUSTOM = true;
 </script>
 <script src="{{ asset('js/loan-terms.js') }}"></script>
 <script>
@@ -308,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function () {
             : url('/book-title-log-suggestions');
     @endphp
     const bookTitleLogSuggestUrl = @json($bookTitleLogSuggestUrl);
+    const accessionLogSuggestUrl = @json(route('book.accession.log.suggestions'));
 
     function wireAutocomplete({ input, list, fetchUrl, onSelect, minChars = 1, mapItems }) {
         if (!input || !list) return;
@@ -470,7 +493,8 @@ document.addEventListener('DOMContentLoaded', function () {
         mapItems: function (data) {
             return (data || []).map(function (b) {
                 const idPart = b.copy_identifier_summary || 'No copy ID';
-                const label = (b.title || 'Untitled') + ' — ' + (b.author || '') + ' · ' + idPart;
+                const reserve = b.is_reserve ? ' · Reserve' : '';
+                const label = (b.title || 'Untitled') + ' — ' + (b.author || '') + ' · ' + idPart + reserve;
                 return { label: label, raw: b };
             });
         },
@@ -512,6 +536,20 @@ document.addEventListener('DOMContentLoaded', function () {
         mapItems: function (data) {
             return (data || []).map(function (row) {
                 return { label: row.title, raw: row };
+            });
+        },
+    });
+
+    wireAutocomplete({
+        input: document.getElementById('filter_accession_no'),
+        list: document.getElementById('filterAccessionSuggestions'),
+        fetchUrl: accessionLogSuggestUrl,
+        onSelect: function (item) {
+            document.getElementById('filter_accession_no').value = item.raw.accession_no;
+        },
+        mapItems: function (data) {
+            return (data || []).map(function (row) {
+                return { label: row.label, raw: row };
             });
         },
     });

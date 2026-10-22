@@ -78,10 +78,32 @@
         });
     }
 
-    window.initLoanTermsModal = function (defaultDays) {
-        window.LOAN_DEFAULT_DAYS = defaultDays || 7;
-        const label = document.getElementById('loanTermsDefaultDays');
-        if (label) label.textContent = String(window.LOAN_DEFAULT_DAYS);
+    function refreshLoanTermsCopy() {
+        const regular = Number(window.LOAN_DEFAULT_DAYS) || 7;
+        const reserve = Number(window.RESERVE_LOAN_DAYS) || 1;
+        const maxReserve = Number(window.MAX_RESERVE_LOANS);
+        const reserveCap = Number.isFinite(maxReserve) ? maxReserve : 1;
+        const defaultLabel = document.getElementById('loanTermsDefaultDays');
+        const reserveLabel = document.getElementById('loanTermsReserveDays');
+        const note = document.getElementById('loanTermsReserveNote');
+
+        if (defaultLabel) defaultLabel.textContent = String(regular);
+        if (reserveLabel) reserveLabel.textContent = String(reserve);
+
+        if (!note) return;
+
+        const honorsCustom = window.LOAN_TERMS_RESERVE_HONORS_CUSTOM === true;
+        const customClause = honorsCustom
+            ? 'A custom period replaces the default for this checkout, including reserve copies.'
+            : 'On self-checkout, reserve copies always keep the reserve due date.';
+        note.textContent = 'Reserve limit: ' + reserveCap + ' book' + (reserveCap === 1 ? '' : 's')
+            + ', counted inside the total loan limit. ' + customClause;
+    }
+
+    window.initLoanTermsModal = function (defaultDays, reserveDays) {
+        window.LOAN_DEFAULT_DAYS = defaultDays || window.LOAN_DEFAULT_DAYS || 7;
+        if (reserveDays) window.RESERVE_LOAN_DAYS = reserveDays;
+        refreshLoanTermsCopy();
         bindLoanTermsModalOnce();
     };
 
@@ -93,6 +115,7 @@
         }
 
         resetLoanTermsForm();
+        refreshLoanTermsCopy();
 
         return new Promise(function (resolve) {
             pendingResolve = resolve;

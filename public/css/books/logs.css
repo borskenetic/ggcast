@@ -566,6 +566,10 @@
     max-width: 220px;
 }
 
+.circulation-table__author {
+    max-width: 180px;
+}
+
 .circulation-page .pagination .page-link {
     border-radius: 6px !important;
 }

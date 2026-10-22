@@ -60,14 +60,35 @@ function updateCartUI() {
    ADD TO CART (Unified)
 ========================================= */
 
+function cartLimit() {
+    const max = Number(window.MAX_LOANS);
+    return Number.isFinite(max) && max > 0 ? max : 5;
+}
+
+function reserveCartLimit() {
+    const max = Number(window.MAX_RESERVE_LOANS);
+    return Number.isFinite(max) && max >= 0 ? max : 1;
+}
+
+function isReserveCartItem(book) {
+    return !!(book && (book.reserve || book.is_reserve));
+}
+
 function addToCart() {
     if (!window.selectedBook || !window.selectedBook.id) {
         showToast("No book selected.", "error");
         return;
     }
 
-    if (window.cart.length >= 5) {
-        showToast("Maximum of 5 books allowed.", "error");
+    if (window.cart.length >= cartLimit()) {
+        showToast("Maximum of " + cartLimit() + " books allowed. Reserve books count toward this total.", "error");
+        return;
+    }
+
+    const addingReserve = !!(window.selectedBook.reserve || window.selectedBook.is_reserve);
+    if (addingReserve && window.cart.filter(isReserveCartItem).length >= reserveCartLimit()) {
+        const cap = reserveCartLimit();
+        showToast("You can borrow at most " + cap + " reserve book" + (cap === 1 ? "" : "s") + ". That book also counts toward your total limit.", "error");
         return;
     }
 
@@ -80,19 +101,20 @@ function addToCart() {
     window.cart.push({
         id: newId,
         title: window.selectedBook.title,
-        author: window.selectedBook.author || ''
+        author: window.selectedBook.author || '',
+        reserve: addingReserve
     });
 
     updateCartUI();
-    showToast("Added to cart.", "success");
+    showToast(addingReserve ? "Reserve book added to cart." : "Added to cart.", "success");
 }
 
 /* =========================================
    UNIVERSAL HELPER FOR COPIES.BLADE
 ========================================= */
 
-function selectBookAndAddToCart(id, title, author = '') {
-    window.selectedBook = { id: Number(id), title, author };
+function selectBookAndAddToCart(id, title, author = '', reserve = false) {
+    window.selectedBook = { id: Number(id), title, author, reserve: !!reserve };
     addToCart();
 }
 
@@ -108,6 +130,13 @@ function openStudentCheckout(copyId) {
     if (!hidden || !input || !el) return;
 
     hidden.value = String(copyId);
+    const row = document.querySelector('tr[data-copy-id="' + copyId + '"]');
+    window.selectedBook = {
+        id: Number(copyId),
+        reserve: row?.getAttribute('data-reserve') === '1',
+        title: '',
+        author: ''
+    };
     input.value = '';
     if (err) {
         err.textContent = '';
@@ -138,15 +167,12 @@ function confirmCopyCheckout() {
         return;
     }
 
-    const submitCheckout = (loanTerms) => {
-        const payload = {
-            student_id: studentId,
-            book_id: copyId,
-        };
-        if (loanTerms?.due_date) payload.due_date = loanTerms.due_date;
-        if (loanTerms?.loan_duration_days) payload.loan_duration_days = loanTerms.loan_duration_days;
+    const payload = {
+        student_id: studentId,
+        book_id: copyId,
+    };
 
-        fetch(window.CHECKOUT_URL, {
+    fetch(window.CHECKOUT_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -174,13 +200,6 @@ function confirmCopyCheckout() {
                 }
             })
             .catch(() => showToast('Server error occurred.', 'error'));
-    };
-
-    const proceed = typeof promptLoanTerms === 'function'
-        ? promptLoanTerms()
-        : Promise.resolve({});
-
-    proceed.then(submitCheckout);
 }
 
 /* =========================================
@@ -216,9 +235,12 @@ function openCartModal() {
             const li = document.createElement('li');
             li.className = "cart-item";
 
+            const reserveBadge = isReserveCartItem(book)
+                ? '<span class="badge text-bg-warning ms-1">Reserve</span>'
+                : '';
             li.innerHTML = `
                 <div>
-                    <strong>${book.title}</strong><br>
+                    <strong>${book.title}</strong>${reserveBadge}<br>
                     <small>${book.author ?? ''}</small>
                 </div>
                 <button class="remove-btn" onclick="removeFromCart(${index})">

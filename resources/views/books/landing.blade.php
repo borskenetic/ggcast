@@ -407,6 +407,7 @@
 
                 <div class="opac-tab-panels border-top">
                     <div id="opacTabHoldings" class="opac-tab-panel is-active pt-3" role="tabpanel">
+                        @include('partials.reserve_loan_policy_note')
                         <p class="opac-library-location small mb-2" id="opacHoldingsLibraryLine"></p>
                         <div class="table-responsive">
                             <table class="table table-bordered table-sm opac-holdings-table mb-0">
@@ -475,7 +476,7 @@
 
             <div class="cart-header">
                 <h2>Borrow Cart</h2>
-                <p>Maximum of 5 books allowed</p>
+                @include('partials.reserve_loan_policy_note')
             </div>
 
             <div id="cartBody" class="cart-body">
@@ -501,8 +502,6 @@
     <div id="toastContainer" class="toast-container"></div>
     </div>
 
-    @include('partials.loan_terms_modal')
-
     <script>
         window.CHECKOUT_URL = "{{ route('checkout.process') }}";
         window.CSRF_TOKEN = "{{ csrf_token() }}";
@@ -513,14 +512,13 @@
         window.OPAC_BOOK_DETAIL_BASE = @json(url('/opac/api/book').'/');
         window.HYBRID_API_BASE = @json(url('/api/hybrid'));
         window.HYBRID_CSRF = @json(csrf_token());
-        window.LOAN_DEFAULT_DAYS = @json((int) (optional(\App\Models\FineSetting::latest('created_at')->first())->loan_duration_days ?? 7));
+        @include('partials.loan_policy_vars')
 
         function logout() {
             document.querySelector('header form[action*="logout"]')?.submit();
         }
     </script>
     <script src="{{ asset('js/hybrid/hybrid.js') }}"></script>
-    <script src="{{ asset('js/loan-terms.js') }}"></script>
     <script src="{{ asset('js/cart.js') }}"></script>
     <script src="{{ asset('js/landings.js') }}"></script>
     <script src="{{ asset('js/hybrid/opac-bridge.js') }}"></script>

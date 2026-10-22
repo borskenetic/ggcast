@@ -26,7 +26,7 @@ class ReceiptPrinterService
 
     /**
      * @param  array{name?: string, id_number?: string}  $student
-     * @param  list<array{title?: string, author?: string, barcode?: string, due_date?: string}>  $books
+     * @param  list<array{title?: string, author?: string, accession_no?: string, copyright_year?: string, barcode?: string, due_date?: string}>  $books
      */
     public function printCheckout(array $student, array $books): bool
     {
@@ -55,7 +55,7 @@ class ReceiptPrinterService
 
     /**
      * @param  array{name?: string, id_number?: string}  $student
-     * @param  list<array{title?: string, author?: string, barcode?: string, due_date?: string}>  $books
+     * @param  list<array{title?: string, author?: string, accession_no?: string, copyright_year?: string, barcode?: string, due_date?: string}>  $books
      */
     private function buildCheckoutReceipt(array $student, array $books): string
     {
@@ -76,6 +76,12 @@ class ReceiptPrinterService
             $out .= $this->line((string) ($book['title'] ?? ''));
             if (! empty($book['author'])) {
                 $out .= $this->line((string) $book['author']);
+            }
+            if (! empty($book['accession_no'])) {
+                $out .= $this->line('Accession: '.$book['accession_no']);
+            }
+            if (! empty($book['copyright_year'])) {
+                $out .= $this->line('Copyright year: '.$book['copyright_year']);
             }
             if (! empty($book['barcode'])) {
                 $out .= $this->line('Barcode: '.$book['barcode']);

@@ -24,6 +24,7 @@ class BookLog extends Model
         'patron_name',
         'status',
         'circulation_type',
+        'is_reserve',
         'renew_count',
         'last_renewed_at',
         'timestamp',
@@ -51,6 +52,7 @@ class BookLog extends Model
         'fine_paid_total' => 'decimal:2',
         'fine_waived_total' => 'decimal:2',
         'fine_cleared_at' => 'datetime',
+        'is_reserve' => 'boolean',
     ];
 
     protected $appends = [
@@ -64,23 +66,69 @@ class BookLog extends Model
      */
     public static function countActiveLoansForStudent(int $studentId): int
     {
-        $latestIds = DB::table('book_logs')
-            ->selectRaw('MAX(id) as id')
-            ->groupBy('book_id')
-            ->pluck('id');
+        $query = static::latestCheckedOutQuery();
 
-        if ($latestIds->isEmpty()) {
-            return 0;
-        }
-
-        return (int) static::query()
-            ->whereIn('id', $latestIds)
-            ->where('student_id', $studentId)
-            ->where('status', 'Checked Out')
-            ->count();
+        return $query === null
+            ? 0
+            : (int) $query->where('student_id', $studentId)->count();
     }
 
     public static function countActiveLoansForEmployee(int $employeeId): int
+    {
+        $query = static::latestCheckedOutQuery();
+
+        return $query === null
+            ? 0
+            : (int) $query->where('employee_id', $employeeId)->count();
+    }
+
+    public static function countActiveReserveLoansForStudent(int $studentId): int
+    {
+        $query = static::latestCheckedOutQuery();
+
+        return $query === null
+            ? 0
+            : (int) $query->where('student_id', $studentId)->whereReserveCopy()->count();
+    }
+
+    public static function countActiveReserveLoansForEmployee(int $employeeId): int
+    {
+        $query = static::latestCheckedOutQuery();
+
+        return $query === null
+            ? 0
+            : (int) $query->where('employee_id', $employeeId)->whereReserveCopy()->count();
+    }
+
+    /**
+     * Open loans whose copy was issued as reserve, or whose sublocation still says reserve.
+     */
+    public function scopeWhereReserveCopy($query)
+    {
+        return $query->where(function ($q) {
+            $q->where('is_reserve', 1)
+                ->orWhereHas('book', function ($book) {
+                    $book->whereRaw('LOWER(COALESCE(section, \'\')) LIKE ?', ['%reserve%']);
+                });
+        });
+    }
+
+    public function usesReservePolicy(): bool
+    {
+        if ((bool) $this->is_reserve) {
+            return true;
+        }
+
+        if ($this->status !== 'Checked Out') {
+            return false;
+        }
+
+        $this->loadMissing('book');
+
+        return (bool) $this->book?->isReserve();
+    }
+
+    protected static function latestCheckedOutQuery()
     {
         $latestIds = DB::table('book_logs')
             ->selectRaw('MAX(id) as id')
@@ -88,14 +136,12 @@ class BookLog extends Model
             ->pluck('id');
 
         if ($latestIds->isEmpty()) {
-            return 0;
+            return null;
         }
 
-        return (int) static::query()
+        return static::query()
             ->whereIn('id', $latestIds)
-            ->where('employee_id', $employeeId)
-            ->where('status', 'Checked Out')
-            ->count();
+            ->where('status', 'Checked Out');
     }
 
     public function book()
@@ -144,17 +190,23 @@ class BookLog extends Model
     {
         $type = $this->circulation_type ?? self::CIRCULATION_CHECKOUT;
 
+        $reserve = (bool) $this->is_reserve || ($this->status === 'Checked Out' && $this->usesReservePolicy());
+
         if ($this->status === 'Checked In') {
-            $kind = $type === self::CIRCULATION_ROOM_USE ? 'room-use loan' : 'outside loan';
+            if ($type === self::CIRCULATION_ROOM_USE) {
+                $kind = $reserve ? 'reserve room-use loan' : 'room-use loan';
+            } else {
+                $kind = $reserve ? 'reserve loan' : 'outside loan';
+            }
 
             return 'Returned ('.$kind.')';
         }
 
         if ($type === self::CIRCULATION_ROOM_USE) {
-            return 'Room use (in library)';
+            return $reserve ? 'Reserve room use (in library)' : 'Room use (in library)';
         }
 
-        return 'Checked out (outside library)';
+        return $reserve ? 'Checked out (reserve)' : 'Checked out (outside library)';
     }
 
     public function patronLabel(): string
@@ -214,7 +266,7 @@ class BookLog extends Model
             : Carbon::now('Asia/Manila');
 
         $graceEnd = Carbon::parse($this->due_date)
-            ->addDays($settings->grace_period_days);
+            ->addDays($settings->graceDaysFor($this->usesReservePolicy()));
 
         if ($compareDate->lte($graceEnd)) {
             return 0;
@@ -243,10 +295,12 @@ class BookLog extends Model
             return 0;
         }
 
-        $fine = $this->days_overdue * $settings->fine_per_day;
+        $reserve = $this->usesReservePolicy();
+        $fine = $this->days_overdue * $settings->finePerDayFor($reserve);
+        $maxFine = $settings->maxFineFor($reserve);
 
-        if (! is_null($settings->max_fine)) {
-            $fine = min($fine, $settings->max_fine);
+        if ($maxFine !== null) {
+            $fine = min($fine, $maxFine);
         }
 
         return round($fine, 2);

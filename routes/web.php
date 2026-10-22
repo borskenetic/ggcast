@@ -153,6 +153,7 @@ Route::middleware(['auth', 'can:isAdminOrStaff'])->group(function () {
     Route::get('/patron-suggestions', [BookLogController::class, 'patronSuggestions'])->name('patron.suggestions');
     Route::get('/book-suggestions', [BookLogController::class, 'bookSuggestions'])->name('book.suggestions');
     Route::get('/book-title-log-suggestions', [BookLogController::class, 'bookTitleLogSuggestions'])->name('book.title.log.suggestions');
+    Route::get('/accession-log-suggestions', [BookLogController::class, 'accessionLogSuggestions'])->name('book.accession.log.suggestions');
     Route::get('/catalog/copy/openlibrary', [OpenLibraryCopyCatalogController::class, 'searchForm'])
     ->name('catalog.copy.openlibrary.form');
     

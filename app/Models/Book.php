@@ -125,4 +125,18 @@ class Book extends Model
         return 'No copy ID on file';
     }
 
+    /**
+     * Reserve copies are shelved under a sublocation (MARC 852$c, stored in section)
+     * whose text contains "reserve" — for example Reserve, Reserves, or Course Reserve.
+     */
+    public static function isReserveSection(?string $section): bool
+    {
+        return preg_match('/reserve/i', (string) $section) === 1;
+    }
+
+    public function isReserve(): bool
+    {
+        return self::isReserveSection($this->section);
+    }
+
 }

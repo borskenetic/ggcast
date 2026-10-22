@@ -26,7 +26,8 @@
             <p class="text-muted">
                 Set how many books a patron may have on loan at the same time, including
                 <strong>check out</strong> and <strong>room use</strong>. These limits apply at the circulation desk
-                and on student self-checkout (OPAC).
+                and on student self-checkout (OPAC). A reserve book uses one of these slots and is also capped
+                by the reserve limit below.
             </p>
 
             <form method="POST" action="{{ route('circulation.borrow_limits.update') }}" id="borrowLimitsForm">
@@ -57,6 +58,32 @@
                     </div>
                 </div>
 
+                <hr>
+
+                <div class="mb-4">
+                    <label for="reserveMax" class="form-label fw-semibold">Reserve books — maximum on loan</label>
+                    <input type="number" name="reserve_max" id="reserveMax" class="form-control"
+                           min="0" max="100" value="{{ old('reserve_max', $reserveMax) }}" required>
+                    <div class="form-text">
+                        Default is 1. A copy is a reserve book when its sublocation contains “Reserve”.
+                        This cap applies to students and to faculty and staff. Each reserve book also counts
+                        toward the total above, so it does not add an extra loan.
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="mb-4">
+                    <label for="maxRenewals" class="form-label fw-semibold">Renewals — maximum per loan</label>
+                    <input type="number" name="max_renewals" id="maxRenewals" class="form-control"
+                           min="0" max="100" value="{{ old('max_renewals', $maxRenewals) }}" required>
+                    <div class="form-text">
+                        Default is 3. Each renewal extends the due date by that copy’s loan length
+                        (reserve length for reserve copies). Set to 0 to turn renewals off.
+                        This applies to students and to faculty and staff.
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Save borrow limits</button>
             </form>
         </div>
@@ -74,6 +101,8 @@
                         <strong>{{ $employeeMax }}</strong> book(s) maximum
                     @endif
                 </li>
+                <li>Reserve books: <strong>{{ $reserveMax }}</strong> at a time, counted inside the totals above</li>
+                <li>Renewals: <strong>{{ $maxRenewals }}</strong> per loan</li>
             </ul>
         </div>
     </div>
