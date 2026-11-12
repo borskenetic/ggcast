@@ -243,6 +243,40 @@
       const alertSound = document.getElementById('alertSound');
       const hybridBar = document.querySelector('.hybrid-bar');
       let isCooldown = false;
+      let alarmCtx = null;
+      let alarmPlaying = false;
+
+      /** Unlock audio during the scanner keypress, before the lookup returns. */
+      function primeAlarmAudio() {
+        alarmPlaying = false;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          if (!alarmCtx) alarmCtx = new AudioCtx();
+          if (alarmCtx.state === 'suspended') alarmCtx.resume().catch(() => {});
+          try {
+            const buffer = alarmCtx.createBuffer(1, 1, 22050);
+            const src = alarmCtx.createBufferSource();
+            src.buffer = buffer;
+            src.connect(alarmCtx.destination);
+            src.start(0);
+          } catch (_) {}
+        }
+        if (!alertSound) return;
+        const previousVolume = alertSound.volume;
+        alertSound.volume = 0;
+        const restore = () => {
+          if (alarmPlaying) return;
+          alertSound.pause();
+          alertSound.currentTime = 0;
+          alertSound.volume = previousVolume || 1;
+        };
+        const played = alertSound.play();
+        if (played && typeof played.then === 'function') {
+          played.then(restore).catch(restore);
+        } else {
+          restore();
+        }
+      }
 
       /** Scanner auto-focus must not steal from pairing, modals, or other UI. */
       function shouldHoldQrFocus() {
@@ -275,6 +309,49 @@
           setTimeout(focusQrScanner, 50);
         }
       });
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function playBookAlarm() {
+        alarmPlaying = true;
+        if (alertSound) {
+          alertSound.volume = 1;
+          alertSound.currentTime = 0;
+          const played = alertSound.play();
+          if (played && typeof played.then === 'function') {
+            played.catch(() => beepBookAlarm());
+            return;
+          }
+        }
+        beepBookAlarm();
+      }
+
+      function beepBookAlarm() {
+        if (!alarmCtx) return;
+        try {
+          if (alarmCtx.state === 'suspended') alarmCtx.resume().catch(() => {});
+          const now = alarmCtx.currentTime;
+          [0, 0.45, 0.9, 1.35].forEach((start) => {
+            const osc = alarmCtx.createOscillator();
+            const gain = alarmCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.value = start < 0.9 ? 880 : 1040;
+            gain.gain.setValueAtTime(0.0001, now + start);
+            gain.gain.exponentialRampToValueAtTime(0.35, now + start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + start + 0.32);
+            osc.connect(gain);
+            gain.connect(alarmCtx.destination);
+            osc.start(now + start);
+            osc.stop(now + start + 0.34);
+          });
+        } catch (_) {}
+      }
 
       function clearDisplay() {
         if (feedbackModal && feedbackModal.style.display === 'flex') {
@@ -340,18 +417,21 @@
             scheduleClear(2000);
           }
         } else if (data.type === 'book') {
-          if (data.bookStatus.toLowerCase() === 'not checked out') {
-            alertSound.play().catch(() => {});
+          const bookStatus = String(data.bookStatus || '');
+          const alarm = data.alarm === true || bookStatus.toLowerCase() === 'not checked out';
+          if (alarm) {
+            playBookAlarm();
           }
           const div = document.createElement('div');
           div.classList.add('name-box');
+          if (alarm) div.classList.add('book-alarm');
           div.innerHTML = `
-            <div class="student-name">${data.book.title_statement}</div>
+            <div class="student-name">${escapeHtml(data.book.title_statement)}</div>
             <div class="label">Book Title</div>
-            <div class="status-button ${data.bookStatus.toLowerCase() === 'not checked out' ? 'status-out' : ''}">${data.bookStatus}</div>
+            <div class="status-button ${alarm ? 'status-out' : ''}">${escapeHtml(bookStatus)}</div>
           `;
           sidebar.appendChild(div);
-          scheduleClear(2000);
+          scheduleClear(alarm ? 4000 : 2000);
         } else if (data.type === 'error') {
           const div = document.createElement('div');
           div.classList.add('name-box');
@@ -410,6 +490,7 @@
         setTimeout(() => { isCooldown = false; }, 100);
 
         const raw = input.value.trim().replace(/\r/g, '');
+        primeAlarmAudio();
         processScan(raw)
           .then(applyScanData)
           .catch(err => console.error(err))

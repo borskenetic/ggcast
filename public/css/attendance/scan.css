@@ -189,6 +189,15 @@ body {
       background: #ef4444; /* Red for OUT status */
     }
 
+    .name-box.book-alarm {
+      outline: 4px solid #ef4444;
+      animation: book-alarm-pulse 0.35s ease-in-out 8;
+    }
+
+    @keyframes book-alarm-pulse {
+      50% { background: #fecaca; }
+    }
+
     .right-content {
       flex: 1;
       background: #151515;

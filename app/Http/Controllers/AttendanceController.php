@@ -42,19 +42,25 @@ class AttendanceController extends Controller
     {
         $request->validate(['qrcode' => 'required|string']);
 
-        $patron = $scanService->resolvePatron($request->qrcode);
+        $token = trim(str_replace(["\r", "\n", "\0"], '', (string) $request->qrcode));
+        $patron = $scanService->resolvePatron($token);
 
-        if (! $patron) {
-            return response()->json([
-                'type' => 'error',
-                'message' => 'RFID not recognized.',
-            ]);
+        if ($patron) {
+            $model = $patron['type'] === 'student' ? $patron['student'] : $patron['employee'];
+            $log = $scanService->recordLiveScan($model);
+
+            return response()->json($scanService->patronJsonResponse($model, $log));
         }
 
-        $model = $patron['type'] === 'student' ? $patron['student'] : $patron['employee'];
-        $log = $scanService->recordLiveScan($model);
+        $book = $scanService->bookGateResponse($token);
+        if ($book) {
+            return response()->json($book);
+        }
 
-        return response()->json($scanService->patronJsonResponse($model, $log));
+        return response()->json([
+            'type' => 'error',
+            'message' => 'RFID not recognized.',
+        ]);
     }
 
     // Show the change video page

@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Http\Controllers\SMSController;
 use App\Models\AttendanceLog;
+use App\Models\Book;
+use App\Models\BookLog;
 use App\Models\Employee;
 use App\Models\HybridDevice;
 use App\Models\Setting;
@@ -54,6 +56,49 @@ class HybridAttendanceScanService
         }
 
         return null;
+    }
+
+    /**
+     * Gate response for a catalog copy identified by its RFID.
+     * Alarms unless the latest circulation record is Checked Out.
+     *
+     * @return array{type: 'book', bookStatus: string, alarm: bool, book: array{title_statement: string, rfid: string}}|null
+     */
+    public function bookGateResponse(string $raw): ?array
+    {
+        $token = trim(str_replace(["\r", "\n", "\0"], '', $raw));
+        if ($token === '') {
+            return null;
+        }
+
+        $book = Book::query()->where('rfid', $token)->first();
+        if (! $book) {
+            $book = Book::query()
+                ->whereRaw('LOWER(rfid) = ?', [mb_strtolower($token)])
+                ->first();
+        }
+
+        if (! $book) {
+            return null;
+        }
+
+        $lastLog = BookLog::query()
+            ->where('book_id', $book->id)
+            ->orderByDesc('timestamp')
+            ->orderByDesc('id')
+            ->first();
+
+        $checkedOut = $lastLog && strcasecmp((string) $lastLog->status, 'Checked Out') === 0;
+
+        return [
+            'type' => 'book',
+            'bookStatus' => $checkedOut ? 'Checked Out' : 'Not Checked Out',
+            'alarm' => ! $checkedOut,
+            'book' => [
+                'title_statement' => $book->title_statement ?: 'Untitled',
+                'rfid' => (string) $book->rfid,
+            ],
+        ];
     }
 
     public function resolveStudent(string $raw): ?Student
